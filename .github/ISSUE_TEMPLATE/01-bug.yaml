@@ -5,33 +5,37 @@ labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
-      value: |
-        Thanks for taking the time to fill out this bug report!
+      value: 버그 리포트를 작성해 주셔서 감사합니다!
+
   - type: textarea
     id: what-happened
     attributes:
-      label: What happened?
-      description: Also tell us, what did you expect to happen?
-      placeholder: Tell us what you see!
-      value: "A bug happened!"
+      label: 무슨 일이 일어났나요?
+      description: 기대했던 동작과 어떤 현상이 보이는지 알려주세요.
+      value: |
+        - 기대했던 동작:
+        - 보이는 현상: 
+      render: markdown
     validations:
       required: true
-  - type: textarea
-    id: logs
-    attributes:
-      label: Relevant log output
-      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
-      render: shell
+
   - type: textarea
     id: repro
     attributes:
-      label: Reproduction steps
-      description: "How do you trigger this bug? Please walk us through it step by step."
+      label: 이 버그를 만나보기 위해 어떻게 해야 할까요? 
+      description: "이 버그를 어떻게 만나게 되었는지 단계별로 설명해주세요."
       value: |
         1.
         2.
         3.
         ...
-      render: bash
+      render: markdown
     validations:
       required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 어떤 버그가 발생했는지 알 수 있게 어떤 결과가 나왔는지 알려주세요!
+      description: 관련 로그 출력을 복사해서 붙여넣어주세요. 자동으로 코드 형식으로 처리되므로 백틱을 사용할 필요는 없어요!
+      render: shell
