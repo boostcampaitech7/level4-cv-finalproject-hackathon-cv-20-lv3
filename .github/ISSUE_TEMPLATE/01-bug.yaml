@@ -1,12 +1,12 @@
-name: Bug Report
-description: File a bug report.
+name: 버그 리포트
+description: 버그 리포트를 작성합니다. 이 버그 리포트는 Jira와 연동됩니다.
 title: "[🐛Bug]: "
-labels: ["bug", "triage"]
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: 버그 리포트를 작성해 주셔서 감사합니다!
-
+  
   - type: textarea
     id: what-happened
     attributes:

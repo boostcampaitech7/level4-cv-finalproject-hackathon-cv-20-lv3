@@ -1,5 +1,5 @@
-name: Request Feature
-description: Suggest an idea for this project
+name: 기능 요청
+description: 기능을 위한 아이디어를 제시합니다. 이 요청은 Jira와 연동됩니다.
 title: "[✨Feat]: "
 labels: ["enhancement"]
 body:
@@ -8,7 +8,7 @@ body:
     attributes:
       value: |
         이 프로젝트를 위한 아이디어를 내주셔서 감사합니다!
-
+        
   - type: textarea
     id: what-happened
     attributes:
