@@ -19,13 +19,14 @@ import random
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
-import wandb
 from config import Config
 from dataset import SALMONNDataset
 from dist_utils import get_rank, init_distributed_mode
 from models import load_model
 from runner import Runner
 from utils import *
+
+import wandb
 
 
 def parse_args():
@@ -45,7 +46,9 @@ def parse_args():
         action="store_true",
         help="if True, use dummy model and skip forward/backward",
     )
-
+    parser.add_argument(
+        "--local-rank", type=int, help="designate gpu number for parallel process"
+    )
     return parser.parse_args()
 
 
