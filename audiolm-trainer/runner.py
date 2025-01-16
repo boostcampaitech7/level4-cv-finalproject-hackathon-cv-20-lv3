@@ -9,7 +9,6 @@ from pathlib import Path
 
 import torch
 import torch.distributed as dist
-import wandb
 from dist_utils import (get_rank, get_world_size,
                         is_dist_avail_and_initialized, is_main_process,
                         main_process)
@@ -18,6 +17,8 @@ from optims import LinearWarmupCosineLRScheduler, get_optimizer
 from tensorboardX import SummaryWriter
 from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import get_dataloader, prepare_sample
+
+import wandb
 
 
 class Runner:
@@ -90,7 +91,7 @@ class Runner:
         # scaler
         self.use_amp = self.config.config.run.get("amp", False)
         if self.use_amp:
-            self.scaler = torch.cuda.amp.GradScaler()
+            self.scaler = torch.GradScaler("cuda")
         else:
             self.scaler = None
 
@@ -149,7 +150,7 @@ class Runner:
             if not self.dryrun:
                 self.scheduler.step(cur_epoch=epoch, cur_step=i)
 
-                with torch.cuda.amp.autocast(enabled=self.use_amp):
+                with torch.autocast("cuda", enabled=self.use_amp):
                     loss = self.model(samples)["loss"]
 
                 if self.use_amp:
@@ -189,8 +190,7 @@ class Runner:
         metric_logger.synchronize_between_processes()
         logging.info("Averaged stats: " + str(metric_logger.global_avg()))
         return {
-            k: f"{meter.global_avg:.3f}"
-            for k, meter in metric_logger.meters.items()
+            k: f"{meter.global_avg:.3f}" for k, meter in metric_logger.meters.items()
         }
 
     @torch.no_grad()
@@ -212,7 +212,7 @@ class Runner:
             samples = prepare_sample(samples, cuda_enabled=self.cuda_enabled)
 
             if not self.dryrun:
-                with torch.cuda.amp.autocast(enabled=self.use_amp):
+                with torch.autocast("cuda", enabled=self.use_amp):
                     forward_result = model(samples, verbose=True)
                 loss = forward_result.get("loss", 0)
                 correct = forward_result.get("correct", 0)
@@ -258,9 +258,7 @@ class Runner:
             dist.barrier()
 
         if save_json:
-            self.save_result(
-                results, self.output_dir, f"eval_{split}_epoch_{epoch}"
-            )
+            self.save_result(results, self.output_dir, f"eval_{split}_epoch_{epoch}")
 
         res = {
             "loss": torch.tensor(0).float().cuda(),
