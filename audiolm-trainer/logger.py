@@ -7,11 +7,10 @@ from collections import defaultdict, deque
 
 import torch
 import torch.distributed as dist
-
 from dist_utils import is_dist_avail_and_initialized, is_main_process
 
 
-class SmoothedValue(object):
+class SmoothedValue:
     """Track a series of values and provide access to smoothed values over a
     window or the global series average.
     """
@@ -74,7 +73,7 @@ class SmoothedValue(object):
         )
 
 
-class MetricLogger(object):
+class MetricLogger:
     def __init__(self, delimiter="\t"):
         self.meters = defaultdict(SmoothedValue)
         self.delimiter = delimiter
@@ -92,19 +91,19 @@ class MetricLogger(object):
         if attr in self.__dict__:
             return self.__dict__[attr]
         raise AttributeError(
-            "'{}' object has no attribute '{}'".format(type(self).__name__, attr)
+            f"'{type(self).__name__}' object has no attribute '{attr}'"
         )
 
     def __str__(self):
         loss_str = []
         for name, meter in self.meters.items():
-            loss_str.append("{}: {}".format(name, str(meter)))
+            loss_str.append(f"{name}: {str(meter)}")
         return self.delimiter.join(loss_str)
 
     def global_avg(self):
         loss_str = []
         for name, meter in self.meters.items():
-            loss_str.append("{}: {:.4f}".format(name, meter.global_avg))
+            loss_str.append(f"{name}: {meter.global_avg:.4f}")
         return self.delimiter.join(loss_str)
 
     def synchronize_between_processes(self):
@@ -114,7 +113,9 @@ class MetricLogger(object):
     def add_meter(self, name, meter):
         self.meters[name] = meter
 
-    def log_every(self, iterable, print_freq, header=None, logger=None, start_step=None):
+    def log_every(
+        self, iterable, print_freq, header=None, logger=None, start_step=None
+    ):
         i = 0
         if not header:
             header = ""
@@ -142,9 +143,15 @@ class MetricLogger(object):
             if i % print_freq == 0 or i == len(iterable) - 1:
                 if is_main_process():
                     if logger is not None:
-                        assert start_step is not None, "start_step is needed to compute global_step!"
+                        assert (
+                            start_step is not None
+                        ), "start_step is needed to compute global_step!"
                         for name, meter in self.meters.items():
-                            logger.add_scalar("{}".format(name), float(str(meter)), global_step=start_step+i)
+                            logger.add_scalar(
+                                f"{name}",
+                                float(str(meter)),
+                                global_step=start_step + i,
+                            )
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
                 if torch.cuda.is_available():
@@ -183,7 +190,7 @@ class MetricLogger(object):
 
 class AttrDict(dict):
     def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.__dict__ = self
 
 

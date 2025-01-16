@@ -51,7 +51,7 @@ model:
 
 datasets:
   prefix: "/data/ephemeral/home/.dataset"
-  
+
   train_ann_path: "./data/stage2_train.json" # annotation 파일을 audiolm-trainer/data/에 넣어주세요
   valid_ann_path: "./data/stage2_val.json"   # annotation 파일을 audiolm-trainer/data/에 넣어주세요
   test_ann_path: "./data/stage2_test.json"   # annotation 파일을 audiolm-trainer/data/에 넣어주세요

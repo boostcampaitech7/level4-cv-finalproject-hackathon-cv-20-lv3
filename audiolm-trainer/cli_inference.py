@@ -15,15 +15,15 @@
 import argparse
 
 import torch
-from transformers import WhisperFeatureExtractor
-
 from config import Config
 from models.salmonn import SALMONN
+from transformers import WhisperFeatureExtractor
 from utils import prepare_one_sample
 
-
 parser = argparse.ArgumentParser()
-parser.add_argument("--cfg-path", type=str, required=True, help='path to configuration file')
+parser.add_argument(
+    "--cfg-path", type=str, required=True, help="path to configuration file"
+)
 parser.add_argument("--device", type=str, default="cuda:0")
 parser.add_argument(
     "--options",
@@ -48,15 +48,17 @@ while True:
     prompt = input("Your Prompt:\n")
 
     if args.device.startswith("cuda"):
-        cuda_enabled=True
+        cuda_enabled = True
         print("Use GPU")
     else:
-        cuda_enabled=False
+        cuda_enabled = False
         print("Use CPU")
     samples = prepare_one_sample(wav_path, wav_processor, cuda_enabled=cuda_enabled)
     prompt = [
-        cfg.config.model.prompt_template.format("<Speech><SpeechHere></Speech> " + prompt.strip())
+        cfg.config.model.prompt_template.format(
+            "<Speech><SpeechHere></Speech> " + prompt.strip()
+        )
     ]
     print("Output:")
-    
+
     print(model.generate(samples, cfg.config.generate, prompts=prompt)[0])

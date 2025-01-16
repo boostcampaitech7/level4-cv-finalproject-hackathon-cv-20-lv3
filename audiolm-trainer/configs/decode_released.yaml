@@ -16,7 +16,7 @@ model:
   # paths
   # initialize with original llama, whisper, beats and
   # re-load updated weights from `ckpt`
-  
+
   llama_path: "/data/gmkim/checkpoints/lmsys/vicuna-13b-v1.1"
   whisper_path: "/data/gmkim/checkpoints/openai/whisper-large-v2"
   beats_path: "/data/gmkim/checkpoints/beats_finetuned_iter3_AS2M_cpt2/BEATs_iter3_plus_AS2M_finetuned_on_AS2M_cpt2.pt"

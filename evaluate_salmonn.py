@@ -2,28 +2,30 @@ import argparse
 import json
 import random
 import sys
-import torch
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
+import torch
 from tqdm import tqdm
 
 # Add custom module path
 sys.path.append(str(Path(__file__).parent / "audiolm-trainer"))
 
-# Custom modules
-from salmonn_utils import SALMONNTestDataset, load_preprocessor, load_model
 from config import Config
 from utils import get_dataloader, prepare_sample
-from metrics import compute_wer, compute_spider
+
+from metrics import compute_spider, compute_wer
+# Custom modules
+from salmonn_utils import SALMONNTestDataset, load_model, load_preprocessor
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--cfg-path", 
-        type=str, 
-        help='path to configuration file', 
-        default='salmonn_eval_config.yaml'
+        "--cfg-path",
+        type=str,
+        help="path to configuration file",
+        default="salmonn_eval_config.yaml",
     )
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument(
@@ -33,8 +35,18 @@ def parse_args():
         "in xxx=yyy format will be merged into config file (deprecate), "
         "change to --cfg-options instead.",
     )
-    parser.add_argument("--task", type=str, default=None, help="Task to evaluate", choices=['asr', 'aac'])
-    parser.add_argument("--skip_scoring", action='store_true', help='if True, skip scoring after inference')
+    parser.add_argument(
+        "--task",
+        type=str,
+        default=None,
+        help="Task to evaluate",
+        choices=["asr", "aac"],
+    )
+    parser.add_argument(
+        "--skip_scoring",
+        action="store_true",
+        help="if True, skip scoring after inference",
+    )
     return parser.parse_args()
 
 
@@ -43,13 +55,15 @@ def get_dataset(dataset_cfg, run_cfg, task):
         dataset_cfg.prefix, dataset_cfg.test_ann_path, dataset_cfg.whisper_path, task
     )
 
-    test_loader = get_dataloader(testset, run_cfg, is_train=False, use_distributed=False)
+    test_loader = get_dataloader(
+        testset, run_cfg, is_train=False, use_distributed=False
+    )
     return test_loader
 
 
 def main(args):
     cfg = Config(args)
-    
+
     # Load models
     salmonn_preprocessor = load_preprocessor(cfg)
     llama_model, tokenizer = load_model(salmonn_preprocessor)
@@ -58,7 +72,7 @@ def main(args):
     # Load data
     dataloader = get_dataset(cfg.config.datasets, cfg.config.run, args.task)
 
-    with open("audiolm-trainer/prompts/test_prompt.json", "r") as f:
+    with open("audiolm-trainer/prompts/test_prompt.json") as f:
         test_prompt = json.load(f)
 
     # Evaluation
@@ -73,18 +87,27 @@ def main(args):
         spectrogram = samples["spectrogram"]
         raw_wav = samples.get("raw_wav", None)
         audio_padding_mask = samples.get("padding_mask", None)
-        speech_embeds, speech_atts = salmonn_preprocessor.encode_speech(spectrogram, raw_wav=raw_wav, audio_padding_mask=audio_padding_mask)
+        speech_embeds, speech_atts = salmonn_preprocessor.encode_speech(
+            spectrogram, raw_wav=raw_wav, audio_padding_mask=audio_padding_mask
+        )
 
-        # Add prompt embeds + audio embed 
-        prompts = [test_prompt[task] for task in samples['task']]
-        templated_prompts = [cfg.config.model.prompt_template.format(prompt) for prompt in prompts]
+        # Add prompt embeds + audio embed
+        prompts = [test_prompt[task] for task in samples["task"]]
+        templated_prompts = [
+            cfg.config.model.prompt_template.format(prompt) for prompt in prompts
+        ]
 
-        speech_embeds, speech_atts = salmonn_preprocessor.prompt_wrap(speech_embeds, speech_atts, templated_prompts, multi_prompt=True)
-        bos = torch.ones(
-            [batch_size, 1],
-            dtype=torch.int32,
-            device=speech_embeds.device,
-        ) * tokenizer.bos_token_id
+        speech_embeds, speech_atts = salmonn_preprocessor.prompt_wrap(
+            speech_embeds, speech_atts, templated_prompts, multi_prompt=True
+        )
+        bos = (
+            torch.ones(
+                [batch_size, 1],
+                dtype=torch.int32,
+                device=speech_embeds.device,
+            )
+            * tokenizer.bos_token_id
+        )
 
         bos_embeds = llama_model.model.model.embed_tokens(bos)
         atts_bos = speech_atts[:, :1]
@@ -118,17 +141,17 @@ def main(args):
             refs.extend(ref)
 
     if not args.skip_scoring:
-        if args.task == 'asr':
+        if args.task == "asr":
             compute_wer(hyps, refs)
-            
-        elif args.task == 'aac':
+
+        elif args.task == "aac":
             compute_spider(hyps, refs)
 
     result_df = pd.DataFrame({"testset_id": testset_ids, "text": hyps})
     result_df.to_csv("submission.csv", index=False)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
 
     random.seed(42)

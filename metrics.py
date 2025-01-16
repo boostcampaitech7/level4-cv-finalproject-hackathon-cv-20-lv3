@@ -1,16 +1,19 @@
-import editdistance as ed
-import unicodedata
 import json
 import os
 import re
-import torch
-from torch import Tensor
-import numpy as np
+import unicodedata
+from collections import Counter, defaultdict
 from fractions import Fraction
-from collections import defaultdict, Counter
-from typing import Any, Callable, Mapping, Union, Iterator, List, Match, Optional
-from more_itertools import windowed
+from typing import (Any, List, Optional,
+                    Union)
+from collections.abc import Callable, Iterator, Mapping
+from re import Match
 
+import editdistance as ed
+import numpy as np
+import torch
+from more_itertools import windowed
+from torch import Tensor
 
 ADDITIONAL_DIACRITICS = {
     "œ": "oe",
@@ -31,24 +34,28 @@ ADDITIONAL_DIACRITICS = {
     "Ł": "L",
 }
 
+
 def remove_symbols_and_diacritics(s: str, keep=""):
     """
     Replace any other markers, symbols, and punctuations with a space,
     and drop any diacritics (category 'Mn' and some manual mappings)
     """
     return "".join(
-        c
-        if c in keep
-        else ADDITIONAL_DIACRITICS[c]
-        if c in ADDITIONAL_DIACRITICS
-        else ""
-        if unicodedata.category(c) == "Mn"
-        else " "
-        if unicodedata.category(c)[0] in "MSP"
-        else c
+        (
+            c
+            if c in keep
+            else (
+                ADDITIONAL_DIACRITICS[c]
+                if c in ADDITIONAL_DIACRITICS
+                else (
+                    ""
+                    if unicodedata.category(c) == "Mn"
+                    else " " if unicodedata.category(c)[0] in "MSP" else c
+                )
+            )
+        )
         for c in unicodedata.normalize("NFKD", s)
     )
-    
 
 
 class EnglishNumberNormalizer:
@@ -183,8 +190,7 @@ class EnglishNumberNormalizer:
         }
         self.specials = {"and", "double", "triple", "point"}
 
-        self.words = set(
-            [
+        self.words = {
                 key
                 for mapping in [
                     self.zeros,
@@ -200,13 +206,12 @@ class EnglishNumberNormalizer:
                     self.specials,
                 ]
                 for key in mapping
-            ]
-        )
+        }
         self.literal_words = {"one", "ones"}
 
-    def process_words(self, words: List[str]) -> Iterator[str]:
-        prefix: Optional[str] = None
-        value: Optional[Union[str, int]] = None
+    def process_words(self, words: list[str]) -> Iterator[str]:
+        prefix: str | None = None
+        value: str | int | None = None
         skip = False
 
         def to_fraction(s: str):
@@ -215,7 +220,7 @@ class EnglishNumberNormalizer:
             except ValueError:
                 return None
 
-        def output(result: Union[str, int]):
+        def output(result: str | int):
             nonlocal prefix, value
             result = str(result)
             if prefix is not None:
@@ -592,7 +597,7 @@ class EnglishTextNormalizer:
         return s
 
 
-class EvaluationTokenizer(object):
+class EvaluationTokenizer:
     """A generic evaluation-time tokenizer, which leverages built-in tokenizers
     in sacreBLEU (https://github.com/mjpost/sacrebleu). It additionally provides
     lowercasing, punctuation removal and character tokenization, which are
@@ -629,7 +634,9 @@ class EvaluationTokenizer(object):
     def remove_punctuation(cls, sent: str):
         """Remove punctuation based on Unicode category."""
         return cls.SPACE.join(
-            t for t in sent.split(cls.SPACE) if not all(unicodedata.category(c)[0] == "P" for c in t)
+            t
+            for t in sent.split(cls.SPACE)
+            if not all(unicodedata.category(c)[0] == "P" for c in t)
         )
 
     def tokenize(self, sent: str):
@@ -639,7 +646,9 @@ class EvaluationTokenizer(object):
             tokenized = self.remove_punctuation(tokenized)
 
         if self.character_tokenization:
-            tokenized = self.SPACE.join(list(tokenized.replace(self.SPACE, self.SPACE_ESCAPE)))
+            tokenized = self.SPACE.join(
+                list(tokenized.replace(self.SPACE, self.SPACE_ESCAPE))
+            )
 
         if self.lowercase:
             tokenized = tokenized.lower()
@@ -652,7 +661,7 @@ def compute_wer(hyps, refs) -> float:
 
     norm_refs = [normalizer(ref) for ref in refs]
     norm_hyps = [normalizer(hyp) for hyp in hyps]
-    
+
     distance = 0
     ref_length = 0
     tokenizer = EvaluationTokenizer(
@@ -669,12 +678,10 @@ def compute_wer(hyps, refs) -> float:
 
         distance += ed.eval(ref_items, pred_items)
         ref_length += len(ref_items)
-    
+
     wer = distance / ref_length
 
     print(f"WER: {wer*100:0.4f}%")
-
-
 
 
 def cider_d(
@@ -686,7 +693,7 @@ def cider_d(
     tokenizer: Callable[[str], list[str]] = str.split,
     return_tfidf: bool = False,
     scale: float = 10.0,
-) -> Union[Tensor, tuple[dict[str, Tensor], dict[str, Any]]]:
+) -> Tensor | tuple[dict[str, Tensor], dict[str, Any]]:
     """Consensus-based Image Description Evaluation function.
 
     - Paper: https://arxiv.org/pdf/1411.5726.pdf
@@ -733,7 +740,7 @@ def _cider_d_update(
     prev_cooked_cands: list[Counter],
     prev_cooked_mrefs: list[list[Counter]],
 ) -> tuple[list, list]:
-    
+
     new_cooked_mrefs = [
         [__cook_sentence(ref, n, tokenizer) for ref in refs] for refs in mult_references
     ]
@@ -751,7 +758,7 @@ def _cider_d_compute(
     sigma: float,
     return_tfidf: bool,
     scale: float,
-) -> Union[Tensor, tuple[dict[str, Tensor], dict[str, Any]]]:
+) -> Tensor | tuple[dict[str, Tensor], dict[str, Any]]:
     if len(cooked_cands) <= 1:
         raise ValueError(
             f"CIDEr-D metric does not support less than 2 candidates with 2 references. (found {len(cooked_cands)} candidates, but expected > 1)"
@@ -825,7 +832,7 @@ def __compute_doc_freq(cooked_mrefs: list[list[Counter]]) -> Counter[tuple[str, 
     """
     doc_frequencies = Counter()
     for refs in cooked_mrefs:
-        all_refs_ngrams = set(ngram for ref in refs for ngram in ref.keys())
+        all_refs_ngrams = {ngram for ref in refs for ngram in ref.keys()}
         for ngram in all_refs_ngrams:
             doc_frequencies[ngram] += 1
 
@@ -836,7 +843,7 @@ def __counter_to_vec(
     counters: dict[tuple, int],
     log_n_refs: float,
     n: int,
-    doc_frequencies: Union[Mapping[tuple, int], Callable[[tuple], int]],
+    doc_frequencies: Mapping[tuple, int] | Callable[[tuple], int],
 ) -> tuple[list[defaultdict], np.ndarray, int]:
     """
     Function maps counts of ngram to vector of tfidf weights.
@@ -916,7 +923,7 @@ def __similarity(
 def __compute_cider(
     cooked_cands: list[Counter],
     cooked_mrefs: list[list[Counter]],
-    doc_frequencies: Union[Counter[tuple], Callable[[tuple], int]],
+    doc_frequencies: Counter[tuple] | Callable[[tuple], int],
     log_n_refs: float,
     n: int,
     sigma: float,
@@ -948,6 +955,7 @@ def __compute_cider(
     scores = scores * scale
     return scores, tfidf_lst
 
+
 class ParticipantVisibleError(Exception):
     # If you want an error message to be shown to participants, you must raise the error as a ParticipantVisibleError
     # All other errors will only be shown to the competition host. This helps prevent unintentional leakage of solution data.
@@ -955,9 +963,9 @@ class ParticipantVisibleError(Exception):
 
 
 def compute_spider(hyps, refs) -> float:
-    refs = [[ref_] for ref_ in refs] # need to be List[List[str]]
+    refs = [[ref_] for ref_ in refs]  # need to be List[List[str]]
 
     corpus_score, _ = cider_d(hyps, refs)
-    
+
     spider = float(f"{corpus_score['cider_d'].item()*100.0:.4f}")
     print(f"SPIDEr: {spider}")

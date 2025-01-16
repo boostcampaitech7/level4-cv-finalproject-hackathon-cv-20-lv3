@@ -12,26 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import argparse
+import os
 import random
 
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import wandb
-
-from utils import *
 from config import Config
+from dataset import SALMONNDataset
 from dist_utils import get_rank, init_distributed_mode
 from models import load_model
-from dataset import SALMONNDataset
 from runner import Runner
+from utils import *
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='train parameters')
-    parser.add_argument("--cfg-path", type=str, required=True, help='path to configuration file')
+    parser = argparse.ArgumentParser(description="train parameters")
+    parser.add_argument(
+        "--cfg-path", type=str, required=True, help="path to configuration file"
+    )
     parser.add_argument(
         "--options",
         nargs="+",
@@ -39,7 +40,11 @@ def parse_args():
         "in xxx=yyy format will be merged into config file (deprecate), "
         "change to --cfg-options instead.",
     )
-    parser.add_argument("--dryrun", action='store_true', help='if True, use dummy model and skip forward/backward')
+    parser.add_argument(
+        "--dryrun",
+        action="store_true",
+        help="if True, use dummy model and skip forward/backward",
+    )
 
     return parser.parse_args()
 
@@ -69,7 +74,7 @@ def main():
     # initialize distributed training
     init_distributed_mode(run_config)
     setup_seeds(run_config)
-    setup_logger() # set after init_distributed_mode() to only log on master.
+    setup_logger()  # set after init_distributed_mode() to only log on master.
 
     # Wandb logger
     global_rank = int(os.environ["RANK"])
@@ -82,17 +87,26 @@ def main():
 
     # build datasets
     datasets = {
-        "train": SALMONNDataset(data_config.prefix, data_config.train_ann_path, data_config.whisper_path),
-        "valid": SALMONNDataset(data_config.prefix, data_config.valid_ann_path, data_config.whisper_path),
-        "test": SALMONNDataset(data_config.prefix, data_config.test_ann_path, data_config.whisper_path),
+        "train": SALMONNDataset(
+            data_config.prefix, data_config.train_ann_path, data_config.whisper_path
+        ),
+        "valid": SALMONNDataset(
+            data_config.prefix, data_config.valid_ann_path, data_config.whisper_path
+        ),
+        "test": SALMONNDataset(
+            data_config.prefix, data_config.test_ann_path, data_config.whisper_path
+        ),
     }
 
     # build model
     if not args.dryrun:
         model = load_model(model_config)
-    else: # load small dummy language model
+    else:  # load small dummy language model
         from transformers import AutoModelForCausalLM
-        model = AutoModelForCausalLM.from_pretrained("apple/OpenELM-270M-Instruct", trust_remote_code=True)
+
+        model = AutoModelForCausalLM.from_pretrained(
+            "apple/OpenELM-270M-Instruct", trust_remote_code=True
+        )
 
     # build runner
     runner = Runner(cfg, model, datasets, job_id, args.dryrun)

@@ -1,22 +1,23 @@
 # This script is based on https://github.com/salesforce/LAVIS/blob/main/lavis/runners/runner_base.py
 
-import os
-import json
-import time
 import datetime
-from pathlib import Path
+import json
 import logging
+import os
+import time
+from pathlib import Path
 
 import torch
 import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
-from tensorboardX import SummaryWriter
 import wandb
-
-from dist_utils import main_process, is_dist_avail_and_initialized, is_main_process, get_rank, get_world_size
+from dist_utils import (get_rank, get_world_size,
+                        is_dist_avail_and_initialized, is_main_process,
+                        main_process)
 from logger import MetricLogger, SmoothedValue
+from optims import LinearWarmupCosineLRScheduler, get_optimizer
+from tensorboardX import SummaryWriter
+from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import get_dataloader, prepare_sample
-from optims import get_optimizer, LinearWarmupCosineLRScheduler
 
 
 class Runner:
@@ -37,21 +38,23 @@ class Runner:
         self.start_epoch = 0
         self.max_epoch = self.config.config.run.optims.max_epoch
         self.evaluate_only = self.config.config.run.evaluate
-        self.cuda_enabled = (self.device.type == "cuda")
+        self.cuda_enabled = self.device.type == "cuda"
 
         # test prompt
         self.prompt_template = self.config.config.model.get("prompt_template", "")
         test_prompt_path = self.config.config.model.get("test_prompt_path", "")
         if test_prompt_path:
             try:
-                with open(test_prompt_path, "r") as f:
+                with open(test_prompt_path) as f:
                     self.test_prompt_dict = json.load(f)
             except:
                 print("Failed to load test prompt! Try to use utf-8 encoding.")
-                with open(test_prompt_path, "r", encoding="utf-8") as f:
+                with open(test_prompt_path, encoding="utf-8") as f:
                     self.test_prompt_dict = json.load(f)
             for k in self.test_prompt_dict.keys():
-                self.test_prompt_dict[k] = self.prompt_template.format(self.test_prompt_dict[k])
+                self.test_prompt_dict[k] = self.prompt_template.format(
+                    self.test_prompt_dict[k]
+                )
 
         else:
             self.test_prompt_dict = None
@@ -60,16 +63,29 @@ class Runner:
         self._model = model
         self._model.to(self.device)
         if self.use_distributed:
-            self.model = DDP(
-                self._model, device_ids=[self.config.config.run.gpu]
-            )
+            self.model = DDP(self._model, device_ids=[self.config.config.run.gpu])
         else:
             self.model = self._model
 
         # dataloaders
-        self.train_loader = get_dataloader(datasets["train"], self.config.config.run, is_train=True, use_distributed=self.use_distributed)
-        self.valid_loader = get_dataloader(datasets["valid"], self.config.config.run, is_train=False, use_distributed=self.use_distributed)
-        self.test_loader = get_dataloader(datasets["test"], self.config.config.run, is_train=False, use_distributed=self.use_distributed)
+        self.train_loader = get_dataloader(
+            datasets["train"],
+            self.config.config.run,
+            is_train=True,
+            use_distributed=self.use_distributed,
+        )
+        self.valid_loader = get_dataloader(
+            datasets["valid"],
+            self.config.config.run,
+            is_train=False,
+            use_distributed=self.use_distributed,
+        )
+        self.test_loader = get_dataloader(
+            datasets["test"],
+            self.config.config.run,
+            is_train=False,
+            use_distributed=self.use_distributed,
+        )
 
         # scaler
         self.use_amp = self.config.config.run.get("amp", False)
@@ -79,7 +95,11 @@ class Runner:
             self.scaler = None
 
         # optimizer & scheduler
-        self.iters_per_epoch = len(self.train_loader) if self.config.config.run.epoch_based else self.config.config.run.iters_per_epoch
+        self.iters_per_epoch = (
+            len(self.train_loader)
+            if self.config.config.run.epoch_based
+            else self.config.config.run.iters_per_epoch
+        )
         self.optimizer = get_optimizer(self.model, self.config.config.run.optims)
         self.scheduler = LinearWarmupCosineLRScheduler(
             self.optimizer,
@@ -92,7 +112,7 @@ class Runner:
         )
 
         self.log_config()
-        
+
     def unwrap_dist_model(self, model):
         if self.use_distributed:
             return model.module
@@ -111,12 +131,18 @@ class Runner:
                 epoch, self.iters_per_epoch
             )
         )
-        header = "Train: data epoch: [{}]".format(epoch)
+        header = f"Train: data epoch: [{epoch}]"
 
-        for i in metric_logger.log_every(range(self.iters_per_epoch), self.config.config.run.log_freq, header=header, logger=self.log_writter, start_step=epoch*self.iters_per_epoch):
+        for i in metric_logger.log_every(
+            range(self.iters_per_epoch),
+            self.config.config.run.log_freq,
+            header=header,
+            logger=self.log_writter,
+            start_step=epoch * self.iters_per_epoch,
+        ):
             if i >= self.iters_per_epoch:
                 break
-            
+
             samples = next(self.train_loader)
             samples = prepare_sample(samples, cuda_enabled=self.cuda_enabled)
 
@@ -141,21 +167,29 @@ class Runner:
 
                 metric_logger.update(loss=loss.item())
                 metric_logger.update(lr=self.optimizer.param_groups[0]["lr"])
-                
+
                 global_rank = int(os.environ["RANK"])
                 if global_rank == 0:
-                    wandb.log({"train/iteration": i, "train/loss": loss.item(), "train/lr": self.optimizer.param_groups[0]["lr"]})
-            else: # dryrun, no model availble
+                    wandb.log(
+                        {
+                            "train/iteration": i,
+                            "train/loss": loss.item(),
+                            "train/lr": self.optimizer.param_groups[0]["lr"],
+                        }
+                    )
+            else:  # dryrun, no model availble
                 metric_logger.update(loss=0.0)
                 metric_logger.update(lr=0.0)
                 global_rank = int(os.environ["RANK"])
                 if global_rank == 0:
-                    wandb.log({"train/iteration": i, "train/loss": 0.0, "train/lr": 0.0})
+                    wandb.log(
+                        {"train/iteration": i, "train/loss": 0.0, "train/lr": 0.0}
+                    )
 
         metric_logger.synchronize_between_processes()
         logging.info("Averaged stats: " + str(metric_logger.global_avg()))
         return {
-            k: "{:.3f}".format(meter.global_avg)
+            k: f"{meter.global_avg:.3f}"
             for k, meter in metric_logger.meters.items()
         }
 
@@ -166,13 +200,15 @@ class Runner:
             model.eval()
 
         dataloader = getattr(self, split + "_loader", None)
-        assert dataloader is not None, "{}_loader does not exist.".format(split)
+        assert dataloader is not None, f"{split}_loader does not exist."
 
         metric_logger = MetricLogger(delimiter="  ")
-        header = "Eval: data epoch: [{}]".format(epoch)
+        header = f"Eval: data epoch: [{epoch}]"
 
         results = []
-        for samples in metric_logger.log_every(dataloader, self.config.config.run.log_freq, header=header):
+        for samples in metric_logger.log_every(
+            dataloader, self.config.config.run.log_freq, header=header
+        ):
             samples = prepare_sample(samples, cuda_enabled=self.cuda_enabled)
 
             if not self.dryrun:
@@ -204,7 +240,10 @@ class Runner:
                     else:
                         prompts = [self.test_prompt_dict[s] for s in samples["task"]]
                         if "Q" in samples:
-                            prompts = [p.format(q) if "{}" in p else p for p, q in zip(prompts, samples["Q"])]
+                            prompts = [
+                                p.format(q) if "{}" in p else p
+                                for p, q in zip(prompts, samples["Q"])
+                            ]
                 else:
                     prompts = None
 
@@ -219,7 +258,9 @@ class Runner:
             dist.barrier()
 
         if save_json:
-            self.save_result(results, self.output_dir, "eval_{}_epoch_{}".format(split, epoch))
+            self.save_result(
+                results, self.output_dir, f"eval_{split}_epoch_{epoch}"
+            )
 
         res = {
             "loss": torch.tensor(0).float().cuda(),
@@ -227,7 +268,7 @@ class Runner:
             "correct": torch.tensor(0).float().cuda(),
             "n_token": torch.tensor(0).float().cuda(),
         }
-        
+
         for item in results:
             item_loss = item["loss"]
             item_n_sample = len(item["id"])
@@ -260,7 +301,9 @@ class Runner:
             json.dump(result, open(result_file, "w"), ensure_ascii=False)
         except Exception as e:
             logging.warning(f"Error saving {result_file}. Error: {e}")
-            json.dump(result, open(result_file, "w", encoding="utf-8"), ensure_ascii=False)
+            json.dump(
+                result, open(result_file, "w", encoding="utf-8"), ensure_ascii=False
+            )
 
         if is_dist_avail_and_initialized():
             dist.barrier()
@@ -274,17 +317,21 @@ class Runner:
                     result_dir, "%s_rank%d.json" % (filename, rank)
                 )
                 try:
-                    res = json.load(open(result_file, "r"))
+                    res = json.load(open(result_file))
                 except Exception as e:
                     logging.warning(f"Error reading {result_file}. Error: {e}")
-                    res = json.load(open(result_file, "r", encoding="utf-8"))
+                    res = json.load(open(result_file, encoding="utf-8"))
                 result += res
 
             try:
                 json.dump(result, open(final_result_file, "w"), ensure_ascii=False)
             except Exception as e:
                 logging.warning(f"Error saving {final_result_file}. Error: {e}")
-                json.dump(result, open(final_result_file, "w", encoding="utf-8"), ensure_ascii=False)
+                json.dump(
+                    result,
+                    open(final_result_file, "w", encoding="utf-8"),
+                    ensure_ascii=False,
+                )
 
             print("result file saved to %s" % final_result_file)
 
@@ -304,7 +351,9 @@ class Runner:
 
             # validating phase
             logging.info("Validating Phase")
-            valid_log = self.valid_epoch(cur_epoch, "valid", decode=False, save_json=False)
+            valid_log = self.valid_epoch(
+                cur_epoch, "valid", decode=False, save_json=False
+            )
             if valid_log is not None:
                 if is_main_process():
                     agg_metrics = valid_log["agg_metrics"]
@@ -312,11 +361,13 @@ class Runner:
                         best_agg_metric = agg_metrics
                         best_epoch = cur_epoch
 
-                        self.save_checkpoint(cur_epoch, is_best=True)                    
+                        self.save_checkpoint(cur_epoch, is_best=True)
 
                     valid_log.update({"best_epoch": best_epoch})
                     self.log_stats(valid_log, split_name="valid")
-                    wandb.log({"valid/epoch": cur_epoch, "valid/agg_metrics": agg_metrics})
+                    wandb.log(
+                        {"valid/epoch": cur_epoch, "valid/agg_metrics": agg_metrics}
+                    )
 
             self.save_checkpoint(cur_epoch, is_best=False)
 
@@ -329,7 +380,7 @@ class Runner:
 
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        logging.info("Training time {}".format(total_time_str))
+        logging.info(f"Training time {total_time_str}")
 
     @main_process
     def log_config(self):
@@ -370,5 +421,5 @@ class Runner:
             self.output_dir,
             "checkpoint_{}.pth".format("best" if is_best else cur_epoch),
         )
-        logging.info("Saving checkpoint at epoch {} to {}.".format(cur_epoch, save_to))
+        logging.info(f"Saving checkpoint at epoch {cur_epoch} to {save_to}.")
         torch.save(save_obj, save_to)
