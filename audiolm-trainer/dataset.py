@@ -78,7 +78,7 @@ class SALMONNDataset(Dataset):
 
     def __getitem__(self, index):
         ann = self.annotation[index]
-        audio_path = self.prefix + '/' + ann["path"]
+        audio_path = self.prefix + ann["path"]
         try:
             audio, sr = sf.read(audio_path)
         except:
