@@ -14,7 +14,7 @@
 
 model:
   # paths
-  llama_path: "/data/ephemeral/home/.pretrained/vicuna-13b-v1.1"
+  llama_path: "/data/ephemeral/home/.pretrained/vicuna-7b-v1.1"
   whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
   beats_path: "/data/ephemeral/home/.pretrained/beats-iter3-plus-AS2M-finetuned-on-AS2M-cpt2/BEATs_iter3_plus_AS2M_finetuned_on_AS2M_cpt2.pt"
 
@@ -64,7 +64,7 @@ run:
   seed: 42
   output_dir: "outputs_stage1_only"
   evaluate: False # if True, only evaluate model on test data
-  exp_name: "vicuna-13b-v1.1-stage1"
+  exp_name: "vicuna-7b-v1.1-stage1"
 
   log_freq: 5
   epoch_based: False
