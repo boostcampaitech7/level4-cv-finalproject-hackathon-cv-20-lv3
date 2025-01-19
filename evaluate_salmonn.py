@@ -78,7 +78,7 @@ def convert_task_to_mode(task, skip_scoring):
 
 def get_dataset(dataset_cfg, run_cfg, task):
     testset = SALMONNTestDataset(
-        dataset_cfg.prefix, dataset_cfg.test_ann_path, dataset_cfg.whisper_path, task
+        dataset_cfg.prefix, dataset_cfg.test_ann_path, dataset_cfg.whisper_path
     )
 
     test_loader = get_dataloader(testset, run_cfg, is_train=False, use_distributed=False)
@@ -142,7 +142,7 @@ def main(args):
         # Generation
         outputs = llama_model.model.generate(
             inputs_embeds=embeds,
-            pad_token_id=llama_model.config.eos_token_id[0],
+            pad_token_id=llama_model.config.eos_token_id,
             max_new_tokens=generate_cfg.get("max_new_tokens", 200),
             num_beams=generate_cfg.get("num_beams", 4),
             do_sample=generate_cfg.get("do_sample", False),
