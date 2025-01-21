@@ -4,8 +4,8 @@ from tqdm import tqdm
 import time
 
 # 환경 변수 정의
-PATH_PREFIX = 'C:\\Users\\clear\\Documents\\GitHub\\level4-cv-finalproject-hackathon-cv-20-lv3'
-ANNOTATION_PREFIX = os.path.join(PATH_PREFIX, '00_original_annotation')
+PATH_PREFIX = '/data/ephemeral/home/.dataset'
+ANNOTATION_PREFIX = os.path.join(PATH_PREFIX, 'annotation')
 STAGE1_TRAIN_PATH = os.path.join(ANNOTATION_PREFIX, 'stage1_train.json')
 STAGE2_TRAIN_PATH = os.path.join(ANNOTATION_PREFIX, 'stage2_train.json')
 
@@ -20,7 +20,6 @@ def read_annotation_and_make_data(path: str):
 
 def merge_stage1_and_stage2(stage1_data: dict, stage2_data: dict) -> dict:
     """stage1_train.json에 stage2_train.json의 asr과 audiocaption_v2 데이터를 병합하는 함수"""
-    start = time.time()
     # stage2_data에서 'asr'과 'audiocaption_v2'를 찾음
     extracted_data = []
     
@@ -36,12 +35,9 @@ def merge_stage1_and_stage2(stage1_data: dict, stage2_data: dict) -> dict:
     extracted_data_set = {tuple(ann.items()) for ann in extracted_data}
     
     # 두 set의 합집합을 구한 후, 다시 딕셔너리 리스트로 변환
-    merged_annotations = [dict(item) for item in stage1_data_set.union(extracted_data_set)]
+    merged_annotations = [dict(item) for item in tqdm(stage1_data_set.union(extracted_data_set), desc = 'merging')]
     
     stage1_data['annotation'] = merged_annotations
-    end = time.time()
-    
-    print(f"{end-start:.3f} sec")
     return stage1_data
 
 if __name__ == "__main__":
@@ -50,8 +46,10 @@ if __name__ == "__main__":
     if not stage1_data or not stage2_data: exit()
     if stage1_data and stage2_data:
         new_stage1_data = merge_stage1_and_stage2(stage1_data, stage2_data)
-        new_file_path = STAGE1_TRAIN_PATH.replace('00_original_annotation', 'annotation')
-        
+
+        # should be replaced
+        new_file_path = STAGE1_TRAIN_PATH.replace('annotation', 'annotation_test')
+        new_file_path = new_file_path.replace('stage1_train.json', 'merged_stage1_train.json')
         with open(new_file_path, 'w') as f:
             json.dump({"annotation": new_stage1_data}, f, indent=4)
         
