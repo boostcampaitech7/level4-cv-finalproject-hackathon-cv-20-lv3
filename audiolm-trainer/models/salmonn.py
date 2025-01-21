@@ -134,12 +134,35 @@ class SALMONN(nn.Module):
             logging.info("Loading LLaMA Done")
 
             if self.lora:
+                # 
+                model_name = llama_path.split("/")[-1]
+                if model_name.startswith("gemma"):
+                    target_modules = [
+                        "q_proj", 
+                        "o_proj", 
+                        "k_proj", 
+                        "v_proj", 
+                        "gate_proj", 
+                        "up_proj", 
+                        "down_proj"
+                    ]
+                elif model_name.startswith("falcon"):
+                    target_modules = [
+                        "query_key_value", 
+                        "dense", 
+                        "dense_h_to_4h", 
+                        "dense_4h_to_h", 
+                    ]
+                else:
+                    target_modules = None
+
                 self.peft_config = LoraConfig(
                     task_type=TaskType.CAUSAL_LM,
                     inference_mode=False,
                     r=lora_rank,
                     lora_alpha=lora_alpha,
                     lora_dropout=lora_dropout,
+                    target_modules=target_modules
                 )
                 self.llama_model = get_peft_model(self.llama_model, self.peft_config)
                 self.llama_model.print_trainable_parameters()
