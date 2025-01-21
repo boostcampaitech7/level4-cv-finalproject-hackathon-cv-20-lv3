@@ -50,7 +50,7 @@ if __name__ == "__main__":
         # # should be replaced (test code)
         # new_file_path = STAGE1_TRAIN_PATH.replace('annotation', 'annotation_test')
         
-        new_file_path = new_file_path.replace('stage1_train.json', 'merged_stage1_train.json')
+        new_file_path = STAGE1_TRAIN_PATH.replace('stage1_train.json', 'merged_stage1_train.json')
 
         with open(new_file_path, 'w') as f:
             json.dump({"annotation": new_stage1_data}, f, indent=4)
