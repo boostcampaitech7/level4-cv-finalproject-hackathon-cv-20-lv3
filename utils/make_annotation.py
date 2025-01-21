@@ -20,7 +20,6 @@ def read_annotation_and_make_data(path: str):
 
 def merge_stage1_and_stage2(stage1_data: dict, stage2_data: dict) -> dict:
     """stage1_train.json에 stage2_train.json의 asr과 audiocaption_v2 데이터를 병합하는 함수"""
-    start = time.time()
     # stage2_data에서 'asr'과 'audiocaption_v2'를 찾음
     extracted_data = []
     
@@ -39,9 +38,7 @@ def merge_stage1_and_stage2(stage1_data: dict, stage2_data: dict) -> dict:
     merged_annotations = [dict(item) for item in stage1_data_set.union(extracted_data_set)]
     
     stage1_data['annotation'] = merged_annotations
-    end = time.time()
     
-    print(f"{end-start:.3f} sec")
     return stage1_data
 
 if __name__ == "__main__":
