@@ -32,7 +32,7 @@ def merge_stage1_and_stage2(stage1_data: dict, stage2_data: dict) -> dict:
     
     # stage1_data에 병합 (set을 사용하여 중복 제거)
     stage1_annotation_set = {json.dumps(item, sort_keys=True) for item in tqdm(stage1_data['annotation'], desc='make stage1_data set')}
-    extracted_data_set = {json.dumps(item, sort_keys=True) for item in extracted_data, desc='make extracted_data set'}
+    extracted_data_set = {json.dumps(item, sort_keys=True) for item in tqdm(extracted_data, desc='make extracted_data set')}
     
     # 두 집합의 합집합을 구한 후, 다시 리스트로 변환
     merged_annotations = list(map(json.loads, stage1_annotation_set.union(extracted_data_set)))
