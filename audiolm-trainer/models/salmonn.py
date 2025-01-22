@@ -134,7 +134,7 @@ class SALMONN(nn.Module):
             logging.info("Loading LLaMA Done")
 
             if self.lora:
-                # 
+                # find target modules for LoRA depending on the model 
                 model_name = llama_path.split("/")[-1]
                 if model_name.startswith("gemma"):
                     target_modules = [
@@ -148,10 +148,14 @@ class SALMONN(nn.Module):
                     ]
                 elif model_name.startswith("falcon"):
                     target_modules = [
-                        "query_key_value", 
-                        "dense", 
-                        "dense_h_to_4h", 
-                        "dense_4h_to_h", 
+                        "in_proj",
+                        "x_proj",
+                        "dt_proj",
+                        "out_proj",
+                        # "query_key_value", 
+                        # "dense", 
+                        # "dense_h_to_4h", 
+                        # "dense_4h_to_h", 
                     ]
                 else:
                     target_modules = None

@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from tqdm import tqdm
-from transformers import DynamicCache
+from transformers import DynamicCache, HybridCache
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -153,7 +153,11 @@ def model_inference(cfg, samples, test_prompt, salmonn):
     ttft = end_time - start_time
 
     next_token = torch.argmax(outputs.logits[:, -1, :], dim=-1).unsqueeze(1)
-    past_key_values = DynamicCache.from_legacy_cache(outputs.past_key_values)
+    llm_path = cfg.config.model.llama_path
+    if llm_path.split("/")[-1].startswith("gemma"):
+        past_key_values = outputs.past_key_values
+    else:
+        past_key_values = DynamicCache.from_legacy_cache(outputs.past_key_values)
 
     # TPOT
     start_time = time.time()
