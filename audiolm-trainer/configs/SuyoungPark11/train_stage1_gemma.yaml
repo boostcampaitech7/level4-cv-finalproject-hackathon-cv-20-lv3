@@ -14,7 +14,7 @@
 
 model:
   # paths
-  llama_path: "/data/ephemeral/home/.pretrained/vicuna-7b-v1.1"
+  llama_path: "/data/ephemeral/home/.pretrained/gemma-2-2b-it"
   whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
   beats_path: "/data/ephemeral/home/.pretrained/beats-iter3-plus-AS2M-finetuned-on-AS2M-cpt2/BEATs_iter3_plus_AS2M_finetuned_on_AS2M_cpt2.pt"
 
@@ -48,14 +48,14 @@ model:
   prompt_path: "./prompts/train_prompt.json"
   test_prompt_path: "./prompts/test_prompt.json"
   max_txt_len: 300
-  end_sym: "<|end_of_text|>"   # TODO: change eos token
+  end_sym: "</s>"   # TODO: change eos token
 
 datasets:
   prefix: "/data/ephemeral/home/.dataset"
 
-  train_ann_path: /data/ephemeral/home/syp/stage1_filtered_train1.json 
-  valid_ann_path: /data/ephemeral/home/syp/stage1_filtered_train3.json    
-  test_ann_path: /data/ephemeral/home/syp/stage1_filtered_train2.json    
+  train_ann_path: "/data/ephemeral/home/.dataset/annotation_final/stage1_sub_train.json"  
+  valid_ann_path: "/data/ephemeral/home/.dataset/annotation_final/stage1_sub_val.json"    
+  test_ann_path: "/data/ephemeral/home/.dataset/annotation_final/test_asr.json"    
 
   whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
 
@@ -64,15 +64,15 @@ run:
   seed: 42
   output_dir: "outputs_stage1_only"
   evaluate: False # if True, only evaluate model on test data
-  exp_name: "vicuna-7b-v1.1-stage1"
+  exp_name: "gemma-2-2b-it-stage1"
 
   log_freq: 5
   epoch_based: False
   iters_per_epoch: 3000
   accum_grad_iters: 1
-  batch_size_train: 1
-  batch_size_eval: 1
-  num_workers: 4
+  batch_size_train: 8
+  batch_size_eval: 8
+  num_workers: 8
 
   device: "cuda"
   use_distributed: True
