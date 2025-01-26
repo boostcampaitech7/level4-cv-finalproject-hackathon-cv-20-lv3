@@ -20,7 +20,7 @@ model:
 
   token: "<hf_token>"  # Use hf token to access gated repositories
 
-  ckpt: "./outputs_stage1_only/gemma-2-2b-it-base/checkpoint_best.pth" # you may put stage1 checkpoint .pth path in here
+  ckpt: "/data/ephemeral/home/syp/gemma-2-2b-it-stage1.pth" # you may put stage1 checkpoint .pth path in here
 
   freeze_whisper: True
   freeze_beats: True
@@ -52,8 +52,8 @@ model:
 datasets:
   prefix: "/data/ephemeral/home/.dataset"
 
-  train_ann_path: "/data/ephemeral/home/.dataset/annotation_final/stage1_sub_train.json"  # annotation 파일을 audiolm-trainer/data/에 넣어주세요
-  valid_ann_path: "/data/ephemeral/home/.dataset/annotation_final/stage1_sub_val.json"    # annotation 파일을 audiolm-trainer/data/에 넣어주세요
+  train_ann_path: "/data/ephemeral/home/.dataset/annotation_final/stage2_sub_train.json"  # annotation 파일을 audiolm-trainer/data/에 넣어주세요
+  valid_ann_path: "/data/ephemeral/home/.dataset/annotation_final/stage2_sub_val.json"    # annotation 파일을 audiolm-trainer/data/에 넣어주세요
   test_ann_path: "/data/ephemeral/home/.dataset/annotation_final/test_asr.json" 
 
   whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
