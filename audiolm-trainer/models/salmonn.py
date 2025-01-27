@@ -146,17 +146,6 @@ class SALMONN(nn.Module):
                         "up_proj", 
                         "down_proj"
                     ]
-                elif model_name.startswith("falcon"):
-                    target_modules = [
-                        "in_proj",
-                        "x_proj",
-                        "dt_proj",
-                        "out_proj",
-                        # "query_key_value", 
-                        # "dense", 
-                        # "dense_h_to_4h", 
-                        # "dense_4h_to_h", 
-                    ]
                 else:
                     target_modules = None
 
