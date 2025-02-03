@@ -67,22 +67,27 @@ def merge_test_data(stage1_data, stage2_data, test_dir, skip=['asr']):
             
             stage1_set = {frozenset(item.items()) for item in stage1_data.get(task, [])}
             stage2_set = {frozenset(item.items()) for item in test_data}
-            merged_annotations = [dict(item) for item in stage1_set.union(stage2_set)]
+
+            # frozenset의 항목을 dict로 변환하고, 'testset_id' 추가
+            merged_annotations = [
+                {**dict(item), 'testset_id': f'test{idx:04d}'} 
+                for idx, item in enumerate(stage1_set.union(stage2_set))
+            ]
             
             with open(task_test_file, 'w', encoding='utf-8') as file:
                 json.dump({"annotation": merged_annotations}, file, ensure_ascii=False, indent=4)
             print(f"✅ Merged Test JSON saved: {task_test_file} (Size: {len(merged_annotations)})")
 
-stage1_input_file = "/data/ephemeral/home/.dataset/annotation_test/stage1_train.json"
-stage2_input_file = "/data/ephemeral/home/.dataset/annotation_test/stage2_train.json"
+stage1_input_file = "/data/ephemeral/home/.dataset/annotation_final/stage1_train.json"
+stage2_input_file = "/data/ephemeral/home/.dataset/annotation_final/stage2_train.json"
 
-stage1_train_file = "/data/ephemeral/home/.dataset/annotation_test/stage1_sub_train.json"
-stage1_val_file = "/data/ephemeral/home/.dataset/annotation_test/stage1_sub_val.json"
+stage1_train_file = "/data/ephemeral/home/.dataset/annotation_final/stage1_sub_train.json"
+stage1_val_file = "/data/ephemeral/home/.dataset/annotation_final/stage1_sub_val.json"
 
-stage2_train_file = "/data/ephemeral/home/.dataset/annotation_test/stage2_sub_train.json"
-stage2_val_file = "/data/ephemeral/home/.dataset/annotation_test/stage2_sub_val.json"
+stage2_train_file = "/data/ephemeral/home/.dataset/annotation_final/stage2_sub_train.json"
+stage2_val_file = "/data/ephemeral/home/.dataset/annotation_final/stage2_sub_val.json"
 
-test_dir = "/data/ephemeral/home/.dataset/annotation_test/test"
+test_dir = "/data/ephemeral/home/.dataset/annotation_final/test"
 
 sample_size = 1000
 
