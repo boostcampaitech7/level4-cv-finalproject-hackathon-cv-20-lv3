@@ -20,16 +20,15 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from peft import LoraConfig, TaskType, get_peft_model
+from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
-                          StoppingCriteriaList)
+                          StoppingCriteriaList, BitsAndBytesConfig)
 
 from .beats.BEATs import BEATs, BEATsConfig
 from .modeling_llama import LlamaForCausalLM
 from .modeling_whisper import WhisperModel
 from .Qformer import BertConfig, BertLMHeadModel
 from .utils import StoppingCriteriaSub
-
 
 class SALMONN(nn.Module):
     @classmethod
@@ -114,13 +113,19 @@ class SALMONN(nn.Module):
         if not only_preprocessor:
             logging.info("Loading LLaMA Model")
             if self.low_resource:
+                config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                )
                 self.llama_model = AutoModelForCausalLM.from_pretrained(
                     llama_path,
-                    torch_dtype=torch.float16,
-                    load_in_8bit=True,
-                    device_map={"": device_8bit},
+                    torch_dtype=torch.bfloat16,
                     token=token,
+                    quantization_config = config,
                 )
+                self.llama_model = prepare_model_for_kbit_training(self.llama_model)
             else:
                 self.llama_model = AutoModelForCausalLM.from_pretrained(
                     llama_path,
@@ -157,6 +162,7 @@ class SALMONN(nn.Module):
                     lora_dropout=lora_dropout,
                     target_modules=target_modules
                 )
+
                 self.llama_model = get_peft_model(self.llama_model, self.peft_config)
                 self.llama_model.print_trainable_parameters()
                 logging.info("LoRA Training")
