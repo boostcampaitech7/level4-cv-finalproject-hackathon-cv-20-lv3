@@ -59,18 +59,19 @@ def split_train_val_test(input_file, train_file, val_file, test_dir, sample_size
         print(f"❌ An error occurred: {e}")
         return None
 
-def merge_test_data(stage1_data, stage2_data, test_dir):
+def merge_test_data(stage1_data, stage2_data, test_dir, skip=['asr']):
     os.makedirs(test_dir, exist_ok=True)
     for task, test_data in tqdm(stage2_data.items(), desc="Merging Test Data"):
-        task_test_file = os.path.join(test_dir, f"test_{task}.json")
-        
-        stage1_set = {frozenset(item.items()) for item in stage1_data.get(task, [])}
-        stage2_set = {frozenset(item.items()) for item in test_data}
-        merged_annotations = [dict(item) for item in stage1_set.union(stage2_set)]
-        
-        with open(task_test_file, 'w', encoding='utf-8') as file:
-            json.dump({"annotation": merged_annotations}, file, ensure_ascii=False, indent=4)
-        print(f"✅ Merged Test JSON saved: {task_test_file} (Size: {len(merged_annotations)})")
+        if task not in skip:
+            task_test_file = os.path.join(test_dir, f"test_{task}.json")
+            
+            stage1_set = {frozenset(item.items()) for item in stage1_data.get(task, [])}
+            stage2_set = {frozenset(item.items()) for item in test_data}
+            merged_annotations = [dict(item) for item in stage1_set.union(stage2_set)]
+            
+            with open(task_test_file, 'w', encoding='utf-8') as file:
+                json.dump({"annotation": merged_annotations}, file, ensure_ascii=False, indent=4)
+            print(f"✅ Merged Test JSON saved: {task_test_file} (Size: {len(merged_annotations)})")
 
 stage1_input_file = "/data/ephemeral/home/.dataset/annotation_test/stage1_train.json"
 stage2_input_file = "/data/ephemeral/home/.dataset/annotation_test/stage2_train.json"
