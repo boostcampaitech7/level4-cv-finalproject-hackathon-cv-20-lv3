@@ -138,13 +138,29 @@ class SALMONN(nn.Module):
                 param.requires_grad = False
             logging.info("Loading LLaMA Done")
 
-            if self.lora:  
+            if self.lora:
+                # find target modules for LoRA depending on the model 
+                model_name = llama_path.split("/")[-1]
+                if model_name.startswith("gemma"):
+                    target_modules = [
+                        "q_proj", 
+                        "o_proj", 
+                        "k_proj", 
+                        "v_proj", 
+                        "gate_proj", 
+                        "up_proj", 
+                        "down_proj"
+                    ]
+                else:
+                    target_modules = None
+
                 self.peft_config = LoraConfig(
                     task_type=TaskType.CAUSAL_LM,
                     inference_mode=False,
                     r=lora_rank,
                     lora_alpha=lora_alpha,
                     lora_dropout=lora_dropout,
+                    target_modules=target_modules
                 )
 
                 self.llama_model = get_peft_model(self.llama_model, self.peft_config)
