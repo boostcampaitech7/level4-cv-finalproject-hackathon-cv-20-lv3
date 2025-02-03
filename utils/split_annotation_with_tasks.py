@@ -54,18 +54,26 @@ def split_train_val_test(input_file, train_file, val_file, test_dir, sample_size
 
         print(f"✅ Train JSON saved: {train_file} (Size: {len(train_data)})")
         print(f"✅ Validation JSON saved: {val_file} (Size: {len(val_data)})")
+
         return test_data_per_task
+
     except Exception as e:
         print(f"❌ An error occurred: {e}")
         return None
 
 def merge_test_data(stage1_data, stage2_data, test_dir, skip=['asr']):
     os.makedirs(test_dir, exist_ok=True)
+    
     for task, test_data in tqdm(stage2_data.items(), desc="Merging Test Data"):
         if task not in skip:
             task_test_file = os.path.join(test_dir, f"test_{task}.json")
             
-            stage1_set = {frozenset(item.items()) for item in stage1_data.get(task, [])}
+            if task == 'audiocaption_v2':
+                stage1_task = 'audiocaption'
+            else:
+                stage1_task = task
+
+            stage1_set = {frozenset(item.items()) for item in stage1_data.get(stage1_task, [])}
             stage2_set = {frozenset(item.items()) for item in test_data}
 
             # frozenset의 항목을 dict로 변환하고, 'testset_id' 추가
@@ -78,16 +86,16 @@ def merge_test_data(stage1_data, stage2_data, test_dir, skip=['asr']):
                 json.dump({"annotation": merged_annotations}, file, ensure_ascii=False, indent=4)
             print(f"✅ Merged Test JSON saved: {task_test_file} (Size: {len(merged_annotations)})")
 
-stage1_input_file = "/data/ephemeral/home/.dataset/annotation_final/stage1_train.json"
-stage2_input_file = "/data/ephemeral/home/.dataset/annotation_final/stage2_train.json"
+stage1_input_file = "/data/ephemeral/home/.dataset/annotation_test/stage1_train.json"
+stage2_input_file = "/data/ephemeral/home/.dataset/annotation_test/stage2_train.json"
 
-stage1_train_file = "/data/ephemeral/home/.dataset/annotation_final/stage1_sub_train.json"
-stage1_val_file = "/data/ephemeral/home/.dataset/annotation_final/stage1_sub_val.json"
+stage1_train_file = "/data/ephemeral/home/.dataset/annotation_test/stage1_sub_train.json"
+stage1_val_file = "/data/ephemeral/home/.dataset/annotation_test/stage1_sub_val.json"
 
-stage2_train_file = "/data/ephemeral/home/.dataset/annotation_final/stage2_sub_train.json"
-stage2_val_file = "/data/ephemeral/home/.dataset/annotation_final/stage2_sub_val.json"
+stage2_train_file = "/data/ephemeral/home/.dataset/annotation_test/stage2_sub_train.json"
+stage2_val_file = "/data/ephemeral/home/.dataset/annotation_test/stage2_sub_val.json"
 
-test_dir = "/data/ephemeral/home/.dataset/annotation_final/test"
+test_dir = "/data/ephemeral/home/.dataset/annotation_test/test"
 
 sample_size = 1000
 
