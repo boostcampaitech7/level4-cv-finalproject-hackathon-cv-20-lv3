@@ -76,6 +76,7 @@ class SALMONN(nn.Module):
         second_stride=0.333333,
         speech_llama_proj_model="",
         freeze_speech_llama_proj=False,
+        adapter=False,
         lora=True,
         lora_rank=8,
         lora_alpha=32,
@@ -97,7 +98,10 @@ class SALMONN(nn.Module):
         self.window_level_Qformer = window_level_Qformer
         self.second_per_window = second_per_window
         self.second_stride = second_stride
+
         self.lora = lora
+        self.adapter = adapter
+
         self.multi_prompt = multi_prompt
         self.max_txt_len = max_txt_len
         self.end_sym = end_sym
@@ -137,6 +141,27 @@ class SALMONN(nn.Module):
             for name, param in self.llama_model.named_parameters():
                 param.requires_grad = False
             logging.info("Loading LLaMA Done")
+
+            if self.adapter:
+                from peft import HRAModel, HRAConfig
+
+                # HRA 설정
+                config_hra = HRAConfig(
+                    r=2,
+                    target_modules=[
+                        "q_proj", "k_proj", "v_proj", "o_proj",  # Attention 관련
+                        "gate_proj", "down_proj", "up_proj"      # FFN 관련
+                    ],
+                    init_weights=True,
+                )
+
+                # FP32로 변경
+                self.llama_model = self.llama_model.to(torch.float32)  # 모델을 FP32로 변환
+
+                # HRA 적용
+                self.llama_model = HRAModel(self.llama_model, config_hra, "default")
+                logging.info("HRA Adapter Training")
+                print("✅ HRA 적용 완료")
 
             if self.lora:
                 # find target modules for LoRA depending on the model 
@@ -408,7 +433,7 @@ class SALMONN(nn.Module):
                 ).to(embeds.device)
                 p_before_embeds = (
                     self.llama_model.model.embed_tokens(p_before_tokens.input_ids)
-                    if not self.lora
+                    if not self.lora and not self.adapter
                     else self.llama_model.model.model.embed_tokens(
                         p_before_tokens.input_ids
                     )
@@ -423,7 +448,7 @@ class SALMONN(nn.Module):
                 ).to(embeds.device)
                 p_after_embeds = (
                     self.llama_model.model.embed_tokens(p_after_tokens.input_ids)
-                    if not self.lora
+                    if not self.lora and not self.adapter
                     else self.llama_model.model.model.embed_tokens(
                         p_after_tokens.input_ids
                     )
@@ -454,7 +479,7 @@ class SALMONN(nn.Module):
                     self.llama_model.model.embed_tokens(
                         p_before_tokens.input_ids
                     ).expand(batch_size, -1, -1)
-                    if not self.lora
+                    if not self.lora and not self.adapter
                     else self.llama_model.model.model.embed_tokens(
                         p_before_tokens.input_ids
                     ).expand(batch_size, -1, -1)
@@ -463,7 +488,7 @@ class SALMONN(nn.Module):
                     self.llama_model.model.embed_tokens(
                         p_after_tokens.input_ids
                     ).expand(batch_size, -1, -1)
-                    if not self.lora
+                    if not self.lora and not self.adapter
                     else self.llama_model.model.model.embed_tokens(
                         p_after_tokens.input_ids
                     ).expand(batch_size, -1, -1)
@@ -531,7 +556,7 @@ class SALMONN(nn.Module):
         ).to(spectrogram.device)
         to_regress_embeds = (
             self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)
-            if not self.lora
+            if not self.lora and not self.adapter
             else self.llama_model.model.model.embed_tokens(to_regress_tokens.input_ids)
         )
         targets = to_regress_tokens.input_ids.masked_fill(
@@ -559,7 +584,7 @@ class SALMONN(nn.Module):
         )
         bos_embeds = (
             self.llama_model.model.embed_tokens(bos)
-            if not self.lora
+            if not self.lora and not self.adapter
             else self.llama_model.model.model.embed_tokens(bos)
         )
         atts_bos = speech_atts[:, :1]
@@ -623,7 +648,7 @@ class SALMONN(nn.Module):
         )
         bos_embeds = (
             self.llama_model.model.embed_tokens(bos)
-            if not self.lora
+            if not self.lora and not self.adapter
             else self.llama_model.model.model.embed_tokens(bos)
         )
         atts_bos = speech_atts[:, :1]
@@ -673,6 +698,8 @@ class SALMONN(nn.Module):
         speech_llama_proj_model = config.get("speech_llama_proj_model", "")
         freeze_speech_llama_proj = config.get("freeze_speech_llama_proj", False)
 
+        adapter = config.get("adapter", False)
+
         lora = config.get("lora", True)
         lora_rank = config.get("lora_rank", 8)
         lora_alpha = config.get("lora_alpha", 32)
@@ -703,6 +730,7 @@ class SALMONN(nn.Module):
             second_stride=second_stride,
             speech_llama_proj_model=speech_llama_proj_model,
             freeze_speech_llama_proj=freeze_speech_llama_proj,
+            adapter=adapter,
             lora=lora,
             lora_rank=lora_rank,
             lora_alpha=lora_alpha,
