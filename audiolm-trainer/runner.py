@@ -90,6 +90,12 @@ class Runner:
 
         # scaler
         self.use_amp = self.config.config.run.get("amp", False)
+
+        # # torch.float16일 때 amp가 제대로 수행되지 않는 문제 해결
+        # if self.get_model_dtype(self.model) == torch.float16:
+        #     self.use_amp = False
+
+        # print(self.get_model_dtype(self.model), self.use_amp)
         if self.use_amp:
             self.scaler = torch.GradScaler("cuda")
         else:
@@ -113,6 +119,14 @@ class Runner:
         )
 
         self.log_config()
+
+    # def get_model_dtype(self, model):
+    #     for name, param in  model.named_parameters():
+    #         print(name,param.dtype)
+    #     assert False
+    #     for buffer in model.buffers():
+    #         return buffer.dtype
+    #     assert False, "모델에 parameters()와 buffers()가 없습니다. dtype을 확인할 수 없습니다."
 
     def unwrap_dist_model(self, model):
         if self.use_distributed:
