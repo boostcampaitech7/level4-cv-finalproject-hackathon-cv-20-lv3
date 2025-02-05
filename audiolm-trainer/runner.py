@@ -120,13 +120,13 @@ class Runner:
 
         self.log_config()
 
-    # def get_model_dtype(self, model):
-    #     for name, param in  model.named_parameters():
-    #         print(name,param.dtype)
-    #     assert False
-    #     for buffer in model.buffers():
-    #         return buffer.dtype
-    #     assert False, "모델에 parameters()와 buffers()가 없습니다. dtype을 확인할 수 없습니다."
+    def get_model_dtype(self, model):
+        for name, param in  model.named_parameters():
+            print(name,param.dtype)
+        assert False
+        for buffer in model.buffers():
+            return buffer.dtype
+        assert False, "모델에 parameters()와 buffers()가 없습니다. dtype을 확인할 수 없습니다."
 
     def unwrap_dist_model(self, model):
         if self.use_distributed:
