@@ -82,6 +82,8 @@ class SALMONN(nn.Module):
         lora_alpha=32,
         lora_dropout=0.1,
         lora_16bit=False,
+        kd=False,
+        kd_teacher_paths=[],
         multi_prompt=False,
         prompt_path="",
         prompt_template="",
@@ -102,6 +104,7 @@ class SALMONN(nn.Module):
 
         self.lora = lora
         self.adapter = adapter
+        self.kd = kd
 
         self.multi_prompt = multi_prompt
         self.max_txt_len = max_txt_len
@@ -132,6 +135,18 @@ class SALMONN(nn.Module):
                     use_cache=False
                 )
                 self.llama_model = prepare_model_for_kbit_training(self.llama_model)
+
+                if self.kd:
+                    self.teacher_models = []
+                    for teacher_path in kd_teacher_paths:
+                        teacher_model = AutoModelForCausalLM.from_pretrained(
+                            teacher_path,
+                            torch_dtype=torch.bfloat16,
+                            token=token,
+                            quantization_config = config,
+                            use_cache=False
+                        )
+                        self.teacher_models.append(teacher_model)
             else:
                 self.llama_model = AutoModelForCausalLM.from_pretrained(
                     llama_path,
@@ -558,6 +573,7 @@ class SALMONN(nn.Module):
             max_length=self.max_txt_len,
             add_special_tokens=False,
         ).to(spectrogram.device)
+        
         to_regress_embeds = (
             self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)
             if not self.lora and not self.adapter
@@ -597,16 +613,59 @@ class SALMONN(nn.Module):
         attention_mask = torch.cat(
             [atts_bos, speech_atts, to_regress_tokens.attention_mask], dim=1
         )
+        if self.kd:
+            # **🔹[Multiple Teacher Models 적용]**
+            # Teacher Model의 Soft Logits을 평균냄
+            T = self.T  # Temperature Hyperparameter
+            teacher_logits = []
+            
+            # 여러 개의 Teacher Model 활용 (self.teacher_models 리스트 사용)
+            with torch.no_grad():
+                for teacher in self.teacher_models:
+                    teacher_output = teacher(
+                        inputs_embeds=inputs_embeds,
+                        attention_mask=attention_mask,
+                        return_dict=True
+                    )
+                    teacher_logits.append(torch.nn.functional.log_softmax(teacher_output.logits / T, dim=-1))
+            
+            # Teacher Model들의 평균 로짓 계산
+            avg_teacher_logits = torch.stack(teacher_logits).mean(dim=0)  
 
-        # calulate loss
-        with self.maybe_autocast():
-            outputs = self.llama_model(
-                inputs_embeds=inputs_embeds,
-                attention_mask=attention_mask,
-                return_dict=True,
-                labels=targets,
-            )
-            loss = outputs.loss
+            # Student Model 실행
+            with self.maybe_autocast():
+                student_outputs = self.llama_model(
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=attention_mask,
+                    return_dict=True,
+                    labels=targets,  # CE Loss 계산을 위해 사용
+                )
+
+            # 기존 CE Loss
+            ce_loss = student_outputs.loss  
+
+            # KL Divergence Loss (KD Loss) 계산
+            logits_student = student_outputs.logits
+            kd_loss = torch.nn.functional.kl_div(
+                torch.nn.functional.log_softmax(logits_student / T, dim=-1),
+                avg_teacher_logits,  # 여러 Teacher의 Soft Target을 반영한 평균값
+                reduction="batchmean",
+            ) * (T ** 2)
+
+            # Total Loss (λ 조절 가능)
+            λ = 0.5  # KD Loss 비율 조정 (0~1 사이 값)
+            loss = (1 - λ) * ce_loss + λ * kd_loss
+
+        else:
+            # calulate loss
+            with self.maybe_autocast():
+                outputs = self.llama_model(
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=attention_mask,
+                    return_dict=True,
+                    labels=targets,
+                )
+                loss = outputs.loss
 
         if verbose:
             nvocab = self.llama_model.config.vocab_size
@@ -710,6 +769,9 @@ class SALMONN(nn.Module):
         lora_dropout = config.get("lora_dropout", 0.1)
         lora_16bit = config.get("lora_16bit", False)
 
+        kd = config.get("kd", False)
+        kd_teacher_paths = config.get("teacher_paths",[])
+
         multi_prompt = config.get("multi_prompt", False)
         prompt_path = config.get("prompt_path", "")
         prompt_template = config.get("prompt_template", "")
@@ -741,6 +803,8 @@ class SALMONN(nn.Module):
             lora_alpha=lora_alpha,
             lora_dropout=lora_dropout,
             lora_16bit=lora_16bit,
+            kd=kd,
+            kd_teacher_paths=kd_teacher_paths,
             multi_prompt=multi_prompt,
             prompt_path=prompt_path,
             prompt_template=prompt_template,
