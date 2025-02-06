@@ -81,6 +81,7 @@ class SALMONN(nn.Module):
         lora_rank=8,
         lora_alpha=32,
         lora_dropout=0.1,
+        lora_16bit=False,
         multi_prompt=False,
         prompt_path="",
         prompt_template="",
@@ -128,6 +129,7 @@ class SALMONN(nn.Module):
                     torch_dtype=torch.bfloat16,
                     token=token,
                     quantization_config = config,
+                    use_cache=False
                 )
                 self.llama_model = prepare_model_for_kbit_training(self.llama_model)
             else:
@@ -189,6 +191,8 @@ class SALMONN(nn.Module):
                 )
 
                 self.llama_model = get_peft_model(self.llama_model, self.peft_config)
+                if lora_16bit:
+                    self.llama_model.to(torch.bfloat16)
                 self.llama_model.print_trainable_parameters()
                 logging.info("LoRA Training")
 
@@ -704,6 +708,7 @@ class SALMONN(nn.Module):
         lora_rank = config.get("lora_rank", 8)
         lora_alpha = config.get("lora_alpha", 32)
         lora_dropout = config.get("lora_dropout", 0.1)
+        lora_16bit = config.get("lora_16bit", False)
 
         multi_prompt = config.get("multi_prompt", False)
         prompt_path = config.get("prompt_path", "")
@@ -735,6 +740,7 @@ class SALMONN(nn.Module):
             lora_rank=lora_rank,
             lora_alpha=lora_alpha,
             lora_dropout=lora_dropout,
+            lora_16bit=lora_16bit,
             multi_prompt=multi_prompt,
             prompt_path=prompt_path,
             prompt_template=prompt_template,
