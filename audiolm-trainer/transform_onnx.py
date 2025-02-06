@@ -3,14 +3,12 @@ import argparse
 import torch.onnx
 from pathlib import Path
 # Add custom module path
-sys.path.append("/data/ephemeral/home/syp/level4-cv-finalproject-hackathon-cv-20-lv3/audiolm-trainer")
+sys.path.append(str(Path(__file__).parent / "audiolm-trainer"))
 
 from models import load_model
+from models.salmonn import SALMONN
 from config import Config
 from dataset import SALMONNDataset
-from salmonn_utils import SALMONNTestDataset, load_preprocessor, load_model
-from utils import get_dataloader, prepare_sample
-
 
 
 def parse_args():
@@ -40,25 +38,17 @@ def main():
     args = parse_args()
     cfg = Config(args)
 
-    torch_model = load_preprocessor(cfg)
-    test_dataset = SALMONNTestDataset(
+    model = load_model(cfg.config.model)
+    model.eval()
+
+    test_dataset = SALMONNDataset(
         cfg.config.datasets.prefix,
-        cfg.config.datasets.test_ann_path_asr,
+        cfg.config.datasets.train_ann_path,
         cfg.config.datasets.whisper_path,
     )
     samples = test_dataset[0]
-    torch.onnx.export(
-        torch_model, 
-        samples, 
-        "model.onnx",
-        opset_version=17,
-        input_names=["spectrogram", "text", "task"],
-        output_names=["loss"],
-        dynamic_axes={
-            "spectrogram": {0: "batch", 1: "time"},
-            "text": {0: "batch"}
-        }
-    )
+    onnx_program = torch.onnx.dynamo_export(model, samples)
+    onnx_program.save("model.onnx")
 
 
 if __name__ == "__main__":
