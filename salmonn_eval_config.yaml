@@ -14,14 +14,14 @@
 
 model:
   # paths
-  llama_path: "meta-llama/Llama-3.2-3B-Instruct"
-  whisper_path: "openai/whisper-large-v2"
-  beats_path: "/root/base_data/checkpoints/BEATs_iter3_plus_AS2M_finetuned_on_AS2M_cpt2/BEATs_iter3_plus_AS2M_finetuned_on_AS2M_cpt2.pt"
+  llama_path: "/data/ephemeral/home/.pretrained/llama-3.2-3b-instruct"
+  whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
+  beats_path: "/data/ephemeral/home/.pretrained/beats-iter3-plus-AS2M-finetuned-on-AS2M-cpt2/BEATs_iter3_plus_AS2M_finetuned_on_AS2M_cpt2.pt"
 
   token: "" # Use hf token to access gated repositories
   only_preprocessor: False
 
-  ckpt: "/root/base_data/checkpoints/llama_stage2_ckpt.pth" # model used for decoding
+  ckpt: "/data/ephemeral/home/.pretrained/salmonn_3b_nota.pth" # model used for decoding
 
   freeze_whisper: True
   freeze_beats: True
@@ -62,11 +62,11 @@ generate:
   end_sym: "<|end_of_text|>"
 
 datasets:
-  prefix: "/root/base_data/datasets"
+  prefix: "/data/ephemeral/home/.dataset"
   # test_ann_path: "data/test_aac.json" # (deprecated next update)
-  test_ann_path_asr: "data/test_asr.json"
-  test_ann_path_aac: "data/test_aac.json"
-  whisper_path: "openai/whisper-large-v2"
+  test_ann_path_asr: "/data/ephemeral/home/.dataset/annotation_final/test_asr.json"
+  test_ann_path_aac: "/data/ephemeral/home/.dataset/annotation_final/test/test_audiocaption_v2.json"
+  whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
 
 run:
   batch_size_eval: 8
