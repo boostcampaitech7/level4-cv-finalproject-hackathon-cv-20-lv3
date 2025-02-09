@@ -2,6 +2,7 @@ __pycache__
 *.pyc
 .vscode
 *.json
+!english.json
 *.csv
 *.pt
 *.pth
@@ -9,5 +10,5 @@ outputs_stage1_only
 outputs_stage2
 wandb
 data
-!/data/data.json
+!/data/english.json
 nohup.out
