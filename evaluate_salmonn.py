@@ -13,10 +13,27 @@ sys.path.append(str(Path(__file__).parent / "audiolm-trainer"))
 
 # Custom modules
 from salmonn_utils import SALMONNTestDataset, load_preprocessor, load_model
+from salmonn_utils_valid import SALMONNTestDataset_valid
 from config import Config
 from utils import get_dataloader, prepare_sample
 from metrics import compute_wer, compute_spider
+from torch.utils.data import Subset, DataLoader
 
+def get_sampled_dataloader(dataloader, sample_size):
+    dataset = dataloader.dataset
+    indices = list(range(sample_size))  # 앞에서부터 sample_size개 선택
+    subset = Subset(dataset, indices)
+    
+    sampled_loader = DataLoader(
+        subset,
+        batch_size=dataloader.batch_size,
+        num_workers=dataloader.num_workers,
+        pin_memory=True,
+        collate_fn=dataset.collater,
+        shuffle=False,
+        drop_last=False,
+    )
+    return sampled_loader
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -76,10 +93,15 @@ def convert_task_to_mode(task, skip_scoring):
     
     raise ValueError(f"Invalid task: {task} | {skip_scoring}")
 
-def get_dataset(dataset_cfg, run_cfg, task):
-    testset = SALMONNTestDataset(
-        dataset_cfg.prefix, dataset_cfg.test_ann_path, dataset_cfg.whisper_path, task
-    )
+def get_dataset(dataset_cfg, run_cfg, mode):
+    if 'valid' in mode:
+        testset = SALMONNTestDataset_valid(
+            dataset_cfg.prefix, dataset_cfg.test_ann_path, dataset_cfg.whisper_path
+        )
+    else:
+        testset = SALMONNTestDataset(
+            dataset_cfg.prefix, dataset_cfg.test_ann_path, dataset_cfg.whisper_path
+        )
 
     test_loader = get_dataloader(testset, run_cfg, is_train=False, use_distributed=False)
     return test_loader
@@ -101,7 +123,8 @@ def main(args):
     salmonn_preprocessor.llama_model = llama_model
 
     # Load data
-    dataloader = get_dataset(cfg.config.datasets, cfg.config.run, args.task)
+    dataloader = get_dataset(cfg.config.datasets, cfg.config.run, args.mode)
+    dataloader = get_sampled_dataloader(dataloader, 10)
 
     with open("audiolm-trainer/prompts/test_prompt.json", "r") as f:
         test_prompt = json.load(f)
