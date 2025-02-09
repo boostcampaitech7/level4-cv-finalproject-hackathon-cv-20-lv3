@@ -64,7 +64,7 @@ generate:
 datasets:
   prefix: "/data/ephemeral/home/.dataset"
   # test_ann_path: "data/test_aac.json" # (deprecated next update)
-  test_ann_path_asr: "/data/ephemeral/home/.dataset/annotation_final/test_asr.json"
+  test_ann_path_asr: "/data/ephemeral/home/.dataset/annotation_final/test/test_asr.json"
   test_ann_path_aac: "/data/ephemeral/home/.dataset/annotation_final/test/test_audiocaption_v2.json"
   whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
 
