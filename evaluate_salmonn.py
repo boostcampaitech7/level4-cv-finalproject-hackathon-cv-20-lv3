@@ -93,6 +93,7 @@ def convert_task_to_mode(task, skip_scoring):
     
     raise ValueError(f"Invalid task: {task} | {skip_scoring}")
 
+    
 def get_dataset(dataset_cfg, run_cfg, mode):
     if 'valid' in mode:
         testset = SALMONNTestDataset_valid(
@@ -106,6 +107,7 @@ def get_dataset(dataset_cfg, run_cfg, mode):
     test_loader = get_dataloader(testset, run_cfg, is_train=False, use_distributed=False)
     return test_loader
 
+  
 def replace_test_ann_path(cfg):
     if "test_ann_path" not in cfg.config.datasets.keys():
         if args.task == "asr":
@@ -114,6 +116,7 @@ def replace_test_ann_path(cfg):
             cfg.config.datasets.test_ann_path = cfg.config.datasets.test_ann_path_aac
     return cfg
 
+  
 def main(args):
     cfg = Config(args)
     cfg = replace_test_ann_path(cfg)
@@ -163,19 +166,35 @@ def main(args):
         generate_cfg = cfg.config.generate
 
         # Generation
-        outputs = llama_model.model.generate(
-            inputs_embeds=embeds,
-            pad_token_id=llama_model.config.eos_token_id[0],
-            max_new_tokens=generate_cfg.get("max_new_tokens", 200),
-            num_beams=generate_cfg.get("num_beams", 4),
-            do_sample=generate_cfg.get("do_sample", False),
-            min_length=generate_cfg.get("min_length", 1),
-            temperature=generate_cfg.get("temperature", 1.0),
-            top_p=generate_cfg.get("top_p", 0.9),
-            repetition_penalty=generate_cfg.get("repetition_penalty", 1.0),
-            length_penalty=generate_cfg.get("length_penalty", 1.0),
-            attention_mask=attns,
-        )
+        llm_name = cfg.config.model.llama_path.split("/")[-1]
+        if llm_name.startswith("gemma"):
+            outputs = llama_model.generate( 
+                inputs_embeds=embeds,
+                pad_token_id=llama_model.config.eos_token_id[0],
+                max_new_tokens=generate_cfg.get("max_new_tokens", 200),
+                num_beams=generate_cfg.get("num_beams", 4),
+                do_sample=generate_cfg.get("do_sample", False),
+                min_length=generate_cfg.get("min_length", 1),
+                temperature=generate_cfg.get("temperature", 1.0),
+                top_p=generate_cfg.get("top_p", 0.9),
+                repetition_penalty=generate_cfg.get("repetition_penalty", 1.0),
+                length_penalty=generate_cfg.get("length_penalty", 1.0),
+                attention_mask=attns,
+            )
+        else:
+            outputs = llama_model.model.generate(
+                inputs_embeds=embeds,
+                pad_token_id=llama_model.config.eos_token_id[0],
+                max_length=generate_cfg.get("max_new_tokens", 200),
+                num_beams=generate_cfg.get("num_beams", 4),
+                do_sample=generate_cfg.get("do_sample", False),
+                min_length=generate_cfg.get("min_length", 1),
+                temperature=generate_cfg.get("temperature", 1.0),
+                top_p=generate_cfg.get("top_p", 0.9),
+                repetition_penalty=generate_cfg.get("repetition_penalty", 1.0),
+                length_penalty=generate_cfg.get("length_penalty", 1.0),
+                attention_mask=attns,
+            )
 
         results = tokenizer.batch_decode(outputs)
         hyp = [result.split(generate_cfg.end_sym)[0].lower() for result in results]
@@ -184,8 +203,6 @@ def main(args):
         if not args.make_submission:
             ref = samples["text"]
             refs.extend(ref)
-
-    
 
     if args.make_submission:
         os.makedirs("submission_results", exist_ok=True)

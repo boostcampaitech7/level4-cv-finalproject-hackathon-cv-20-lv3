@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from tqdm import tqdm
-from transformers import DynamicCache
+from transformers import DynamicCache, HybridCache
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -145,7 +145,7 @@ def model_inference(cfg, samples, test_prompt, salmonn):
     speech_embeds = torch.cat([bos_embeds, speech_embeds], dim=1)
     speech_atts = torch.cat([atts_bos, speech_atts], dim=1)
 
-    outputs = llm.model(
+    outputs = llm.model(             
         inputs_embeds=speech_embeds,
         attention_mask=speech_atts,
     )
@@ -153,12 +153,22 @@ def model_inference(cfg, samples, test_prompt, salmonn):
     ttft = end_time - start_time
 
     next_token = torch.argmax(outputs.logits[:, -1, :], dim=-1).unsqueeze(1)
-    past_key_values = DynamicCache.from_legacy_cache(outputs.past_key_values)
-
+    # Depending on the model, the past_key_values can be in different formats
+    llm_name = cfg.config.model.llama_path.split("/")[-1]
+    if llm_name.startswith("gemma"):
+        past_key_values = HybridCache(
+            config=llm.config,
+            batch_size=batch_size,
+            max_cache_len=cfg.config.model.max_txt_len,
+            device=llm.device,
+            dtype=llm.dtype,
+        )
+    else:
+        past_key_values = DynamicCache.from_legacy_cache(outputs.past_key_values)
     # TPOT
     start_time = time.time()
     with torch.no_grad():
-        _ = llm.model(next_token, past_key_values=past_key_values, use_cache=True)
+        _ = llm.model(next_token, past_key_values=past_key_values, use_cache=True) 
     end_time = time.time()
     tpot = end_time - start_time
 

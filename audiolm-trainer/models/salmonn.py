@@ -20,16 +20,15 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from peft import LoraConfig, TaskType, get_peft_model
+from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
-                          StoppingCriteriaList)
+                          StoppingCriteriaList, BitsAndBytesConfig)
 
 from .beats.BEATs import BEATs, BEATsConfig
 from .modeling_llama import LlamaForCausalLM
 from .modeling_whisper import WhisperModel
 from .Qformer import BertConfig, BertLMHeadModel
 from .utils import StoppingCriteriaSub
-
 
 class SALMONN(nn.Module):
     @classmethod
@@ -77,10 +76,12 @@ class SALMONN(nn.Module):
         second_stride=0.333333,
         speech_llama_proj_model="",
         freeze_speech_llama_proj=False,
+        adapter=False,
         lora=True,
         lora_rank=8,
         lora_alpha=32,
         lora_dropout=0.1,
+        lora_16bit=False,
         multi_prompt=False,
         prompt_path="",
         prompt_template="",
@@ -98,7 +99,10 @@ class SALMONN(nn.Module):
         self.window_level_Qformer = window_level_Qformer
         self.second_per_window = second_per_window
         self.second_stride = second_stride
+
         self.lora = lora
+        self.adapter = adapter
+
         self.multi_prompt = multi_prompt
         self.max_txt_len = max_txt_len
         self.end_sym = end_sym
@@ -114,13 +118,20 @@ class SALMONN(nn.Module):
         if not only_preprocessor:
             logging.info("Loading LLaMA Model")
             if self.low_resource:
+                config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                )
                 self.llama_model = AutoModelForCausalLM.from_pretrained(
                     llama_path,
-                    torch_dtype=torch.float16,
-                    load_in_8bit=True,
-                    device_map={"": device_8bit},
+                    torch_dtype=torch.bfloat16,
                     token=token,
+                    quantization_config = config,
+                    use_cache=False
                 )
+                self.llama_model = prepare_model_for_kbit_training(self.llama_model)
             else:
                 self.llama_model = AutoModelForCausalLM.from_pretrained(
                     llama_path,
@@ -133,15 +144,55 @@ class SALMONN(nn.Module):
                 param.requires_grad = False
             logging.info("Loading LLaMA Done")
 
+            if self.adapter:
+                from peft import HRAModel, HRAConfig
+
+                # HRA 설정
+                config_hra = HRAConfig(
+                    r=2,
+                    target_modules=[
+                        "q_proj", "k_proj", "v_proj", "o_proj",  # Attention 관련
+                        "gate_proj", "down_proj", "up_proj"      # FFN 관련
+                    ],
+                    init_weights=True,
+                )
+
+                # FP32로 변경
+                self.llama_model = self.llama_model.to(torch.float32)  # 모델을 FP32로 변환
+
+                # HRA 적용
+                self.llama_model = HRAModel(self.llama_model, config_hra, "default")
+                logging.info("HRA Adapter Training")
+                print("✅ HRA 적용 완료")
+
             if self.lora:
+                # find target modules for LoRA depending on the model 
+                model_name = llama_path.split("/")[-1]
+                if model_name.startswith("gemma"):
+                    target_modules = [
+                        "q_proj", 
+                        "o_proj", 
+                        "k_proj", 
+                        "v_proj", 
+                        "gate_proj", 
+                        "up_proj", 
+                        "down_proj"
+                    ]
+                else:
+                    target_modules = None
+
                 self.peft_config = LoraConfig(
                     task_type=TaskType.CAUSAL_LM,
                     inference_mode=False,
                     r=lora_rank,
                     lora_alpha=lora_alpha,
                     lora_dropout=lora_dropout,
+                    target_modules=target_modules
                 )
+
                 self.llama_model = get_peft_model(self.llama_model, self.peft_config)
+                if lora_16bit:
+                    self.llama_model.to(torch.bfloat16)
                 self.llama_model.print_trainable_parameters()
                 logging.info("LoRA Training")
 
@@ -386,7 +437,7 @@ class SALMONN(nn.Module):
                 ).to(embeds.device)
                 p_before_embeds = (
                     self.llama_model.model.embed_tokens(p_before_tokens.input_ids)
-                    if not self.lora
+                    if not self.lora and not self.adapter
                     else self.llama_model.model.model.embed_tokens(
                         p_before_tokens.input_ids
                     )
@@ -401,7 +452,7 @@ class SALMONN(nn.Module):
                 ).to(embeds.device)
                 p_after_embeds = (
                     self.llama_model.model.embed_tokens(p_after_tokens.input_ids)
-                    if not self.lora
+                    if not self.lora and not self.adapter
                     else self.llama_model.model.model.embed_tokens(
                         p_after_tokens.input_ids
                     )
@@ -432,7 +483,7 @@ class SALMONN(nn.Module):
                     self.llama_model.model.embed_tokens(
                         p_before_tokens.input_ids
                     ).expand(batch_size, -1, -1)
-                    if not self.lora
+                    if not self.lora and not self.adapter
                     else self.llama_model.model.model.embed_tokens(
                         p_before_tokens.input_ids
                     ).expand(batch_size, -1, -1)
@@ -441,7 +492,7 @@ class SALMONN(nn.Module):
                     self.llama_model.model.embed_tokens(
                         p_after_tokens.input_ids
                     ).expand(batch_size, -1, -1)
-                    if not self.lora
+                    if not self.lora and not self.adapter
                     else self.llama_model.model.model.embed_tokens(
                         p_after_tokens.input_ids
                     ).expand(batch_size, -1, -1)
@@ -509,7 +560,7 @@ class SALMONN(nn.Module):
         ).to(spectrogram.device)
         to_regress_embeds = (
             self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)
-            if not self.lora
+            if not self.lora and not self.adapter
             else self.llama_model.model.model.embed_tokens(to_regress_tokens.input_ids)
         )
         targets = to_regress_tokens.input_ids.masked_fill(
@@ -537,7 +588,7 @@ class SALMONN(nn.Module):
         )
         bos_embeds = (
             self.llama_model.model.embed_tokens(bos)
-            if not self.lora
+            if not self.lora and not self.adapter
             else self.llama_model.model.model.embed_tokens(bos)
         )
         atts_bos = speech_atts[:, :1]
@@ -601,7 +652,7 @@ class SALMONN(nn.Module):
         )
         bos_embeds = (
             self.llama_model.model.embed_tokens(bos)
-            if not self.lora
+            if not self.lora and not self.adapter
             else self.llama_model.model.model.embed_tokens(bos)
         )
         atts_bos = speech_atts[:, :1]
@@ -651,10 +702,13 @@ class SALMONN(nn.Module):
         speech_llama_proj_model = config.get("speech_llama_proj_model", "")
         freeze_speech_llama_proj = config.get("freeze_speech_llama_proj", False)
 
+        adapter = config.get("adapter", False)
+
         lora = config.get("lora", True)
         lora_rank = config.get("lora_rank", 8)
         lora_alpha = config.get("lora_alpha", 32)
         lora_dropout = config.get("lora_dropout", 0.1)
+        lora_16bit = config.get("lora_16bit", False)
 
         multi_prompt = config.get("multi_prompt", False)
         prompt_path = config.get("prompt_path", "")
@@ -681,10 +735,12 @@ class SALMONN(nn.Module):
             second_stride=second_stride,
             speech_llama_proj_model=speech_llama_proj_model,
             freeze_speech_llama_proj=freeze_speech_llama_proj,
+            adapter=adapter,
             lora=lora,
             lora_rank=lora_rank,
             lora_alpha=lora_alpha,
             lora_dropout=lora_dropout,
+            lora_16bit=lora_16bit,
             multi_prompt=multi_prompt,
             prompt_path=prompt_path,
             prompt_template=prompt_template,

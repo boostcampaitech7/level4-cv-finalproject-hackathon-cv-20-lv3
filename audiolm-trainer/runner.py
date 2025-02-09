@@ -90,6 +90,13 @@ class Runner:
 
         # scaler
         self.use_amp = self.config.config.run.get("amp", False)
+
+        # torch.float16일 때 amp가 제대로 수행되지 않는 문제 해결
+        # if self.get_model_dtype(self.model) == torch.float16:
+        #     self.use_amp = False
+
+        # print(self.get_model_dtype(self.model), self.use_amp)
+
         if self.use_amp:
             self.scaler = torch.GradScaler("cuda")
         else:
@@ -114,13 +121,39 @@ class Runner:
 
         self.log_config()
 
+    def get_model_dtype(self, model):
+        for name, param in  model.named_parameters():
+            print(name,param.dtype)
+        return
+        for buffer in model.buffers():
+            return buffer.dtype
+        assert False, "모델에 parameters()와 buffers()가 없습니다. dtype을 확인할 수 없습니다."
+
     def unwrap_dist_model(self, model):
         if self.use_distributed:
             return model.module
         else:
             return model
 
+    def check_for_nan(self,tensor, name="tensor"):
+        """텐서에 NaN 또는 Inf가 포함되어 있는지 확인하는 함수"""
+        if torch.isnan(tensor).any():
+            print(f"Warning: NaN found in {name}")
+        if torch.isinf(tensor).any():
+            print(f"Warning: Inf found in {name}")
+
+    def check_weights_for_nan(self,model):
+        for name, param in model.named_parameters():
+            if torch.isnan(param).any() or torch.isinf(param).any():
+                print(f"Warning: NaN or Inf found in parameter: {name}")
+
+    def check_loss_fn(self, loss):
+        if torch.isnan(loss).any() or torch.isinf(loss).any():
+            print("Warning: NaN or Inf found in loss function output")
+
     def train_epoch(self, epoch):
+
+        self.check_weights_for_nan(self.model)
         self.model.train()
 
         metric_logger = MetricLogger(delimiter="  ")
@@ -152,11 +185,19 @@ class Runner:
 
                 with torch.autocast("cuda", enabled=self.use_amp):
                     loss = self.model(samples)["loss"]
+                
+                self.check_for_nan(loss, name="loss")
+                self.check_loss_fn(loss)
 
                 if self.use_amp:
                     self.scaler.scale(loss).backward()
                 else:
                     loss.backward()
+
+
+                # Gradient Clipping 적용 (max_norm = 1.0)
+                if self.config.config.model.lora_16bit:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
                 if (i + 1) % self.config.config.run.accum_grad_iters == 0:
                     if self.use_amp:
@@ -165,7 +206,7 @@ class Runner:
                     else:
                         self.optimizer.step()
                     self.optimizer.zero_grad()
-
+                
                 metric_logger.update(loss=loss.item())
                 metric_logger.update(lr=self.optimizer.param_groups[0]["lr"])
 

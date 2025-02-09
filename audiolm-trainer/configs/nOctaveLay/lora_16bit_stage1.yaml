@@ -14,13 +14,14 @@
 
 model:
   # paths
-  llama_path: "/data/ephemeral/home/.pretrained/vicuna-13b-v1.1"
+  llama_path: "/data/ephemeral/home/.pretrained/llama-3.2-1b-instruct"
   whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
   beats_path: "/data/ephemeral/home/.pretrained/beats-iter3-plus-AS2M-finetuned-on-AS2M-cpt2/BEATs_iter3_plus_AS2M_finetuned_on_AS2M_cpt2.pt"
 
+
   token: "<hf_token>"  # Use hf token to access gated repositories
 
-  ckpt: "" # you may put stage1 checkpoint .pth path in here
+  ckpt: "" #"model ckpt" # if not "", load model from ckpt for training or evaluation
 
   freeze_whisper: True
   freeze_beats: True
@@ -41,42 +42,48 @@ model:
   lora_rank: 8
   lora_alpha: 32
   lora_dropout: 0.1
+  lora_16bit: True
+
+  # Adapter
+  adapter: False
 
   multi_prompt: True
   prompt_template: "USER: {}\nASSISTANT:"
-  prompt_path: "prompts/train_prompt.json"
-  test_prompt_path: "prompts/test_prompt.json"
+  prompt_path: "./prompts/train_prompt.json"
+  test_prompt_path: "./prompts/test_prompt.json"
   max_txt_len: 300
-  end_sym: "</s>"
+  end_sym: "<|end_of_text|>"   # TODO: change eos token
+
+  low_resource: True
 
 datasets:
-  prefix: "/data/ephemeral/home/.dataset"
+  prefix: "/data/ephemeral/home/.dataset/"
 
-  train_ann_path: "./data/stage2_train.json" # annotation 파일을 audiolm-trainer/data/에 넣어주세요
-  valid_ann_path: "./data/stage2_val.json"   # annotation 파일을 audiolm-trainer/data/에 넣어주세요
-  test_ann_path: "./data/stage2_test.json"   # annotation 파일을 audiolm-trainer/data/에 넣어주세요
+  train_ann_path: "/data/ephemeral/home/.dataset/annotation_final/stage1_sub_train.json"  # annotation 파일을 audiolm-trainer/data/에 넣어주세요
+  valid_ann_path: "/data/ephemeral/home/.dataset/annotation_final/stage1_sub_val.json"    # annotation 파일을 audiolm-trainer/data/에 넣어주세요
+  test_ann_path: "/data/ephemeral/home/.dataset/annotation_final/test_aac.json"    # annotation 파일을 audiolm-trainer/data/에 넣어주세요
 
   whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
 
 run:
   # log & settings
   seed: 42
-  output_dir: "outputs_stage2"
+  output_dir: "outputs_stage1_only"
   evaluate: False # if True, only evaluate model on test data
-  exp_name: "llama-3.2-1B-1percent-stage2"
+  exp_name: "Lora-16bit test"
 
   log_freq: 5
   epoch_based: False
   iters_per_epoch: 3000
   accum_grad_iters: 1
-  batch_size_train: 4
-  batch_size_eval: 4
+  batch_size_train: 8
+  batch_size_eval: 8
   num_workers: 8
 
   device: "cuda"
   use_distributed: True
-  amp: True
-  world_size: 1
+  amp: False
+  world_size: 2
   dist_url: "env://"
 
   # optimizer & scheduler

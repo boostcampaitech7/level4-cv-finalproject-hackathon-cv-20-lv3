@@ -62,7 +62,7 @@ generate:
   end_sym: "<|end_of_text|>"
 
 datasets:
-  prefix: "/root/base_data/datasets"
+  prefix: "/data/ephemeral/home/.dataset"
   # test_ann_path: "data/test_aac.json" # (deprecated next update)
   test_ann_path_asr: "/data/ephemeral/home/.dataset/annotation_final/test/test_asr.json"
   test_ann_path_aac: "/data/ephemeral/home/.dataset/annotation_final/test/test_audiocaption_v2.json"
