@@ -74,7 +74,7 @@ pwd # 결과값 ~/level4-cv-finalproject-hackathon-cv-20-lv3
 ```
 모든 annotation은 다음과 같은 형태를 가지고 있어야 합니다.
 
-```json
+```text
 {
   "annotation": [
     {
