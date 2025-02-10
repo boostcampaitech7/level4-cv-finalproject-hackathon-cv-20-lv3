@@ -1,0 +1,13 @@
+__pycache__
+*.pyc
+.vscode
+*.json
+!english.json
+!evaluate_prompt.json
+*.csv
+*.pt
+*.pth
+outputs_stage1_only
+outputs_stage2
+wandb
+nohup.out

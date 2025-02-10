@@ -1,0 +1,36 @@
+name: 기능 요청
+description: 기능을 위한 아이디어를 제시합니다.
+title: "[✨Feat]: "
+labels: ["enhancement"]
+body:
+
+  - type: markdown
+    attributes:
+      value: |
+        이 프로젝트를 위한 아이디어를 내주셔서 감사합니다!
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 상세 내용(Description)
+      description: 문제가 무엇인지 명확하고 간결하게 설명해주세요.
+      value: "[...] 할 때 어려움을 느낍니다!"
+    validations:
+      required: true
+
+  - type: textarea
+    id: to-do
+    attributes:
+      label: 체크리스트(Tasks)
+      description: 해당 이슈에 대해 필요한 작업목록을 작성해주세요.
+      value: |
+        - [ ] 오류 원인 분석
+        - [ ] 관련 코드 수정
+        - [ ] 테스트 및 검증
+        - [ ] 문서화
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: 추가 정보 및 참고 자료(Additional Information and References)
+      description: 기능 요청과 관련된 추가적인 맥락이나 스크린샷을 여기에 추가해주세요!
