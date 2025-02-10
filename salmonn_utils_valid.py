@@ -79,8 +79,7 @@ class SALMONNTestDataset_valid(Dataset):
 
     def __getitem__(self, index):
         ann = self.annotation[index]
-        # audio_path = os.path.join(self.prefix, ann["path"])
-        audio_path = '/data/ephemeral/home/.dataset'+ann["path"]
+        audio_path = os.path.join(self.prefix, ann["path"].lstrip("/"))
         try:
             audio, sr = sf.read(audio_path)
         except:

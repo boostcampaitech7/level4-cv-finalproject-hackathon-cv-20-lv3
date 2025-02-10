@@ -127,9 +127,8 @@ def main(args):
 
     # Load data
     dataloader = get_dataset(cfg.config.datasets, cfg.config.run, args.mode)
-    dataloader = get_sampled_dataloader(dataloader, 10)
 
-    with open("prompts/evaluate_prompt.json", "r") as f:
+    with open("audiolm-trainer/prompts/test_prompt.json", "r") as f:
         test_prompt = json.load(f)
 
     # Evaluation
@@ -206,7 +205,7 @@ def main(args):
 
     if args.make_submission:
         os.makedirs("submission_results", exist_ok=True)
-        file_name = f"submission_results/{time.strftime('%Y-%m-%d_%H-%M-%S')}_{args.mode}.csv"
+        file_name = f"submission_results/{time.strftime('%Y-%m-%d_%H-%M-%S')}_{args.mode}_whisper_base_prompt.csv"
     else:
         if args.task == 'asr':
             compute_wer(hyps, refs)

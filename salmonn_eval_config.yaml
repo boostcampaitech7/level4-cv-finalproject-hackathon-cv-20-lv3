@@ -61,6 +61,8 @@ generate:
   repetition_penalty: 1.0
   length_penalty: 1.0
   end_sym: "<|end_of_text|>"
+    # Quantization
+  low_resource: True # 
 
 datasets:
   prefix: "/data/ephemeral/home/.dataset"

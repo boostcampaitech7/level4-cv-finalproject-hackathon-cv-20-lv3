@@ -94,8 +94,7 @@ class SALMONNTestDataset(Dataset):
             audio = np.concatenate((audio, sil), axis=0)
 
         if sr != self.wav_processor.sampling_rate: # TODO. use more efficient implementation            
-            resampler = T.Resample(orig_freq=sr, new_freq=self.wav_processor.sampling_rate)
-            audio = resampler(torch.tensor(audio)).numpy()
+            audio = librosa.resample(audio, orig_sr=sr, target_sr=self.wav_processor.sampling_rate)
             sr = self.wav_processor.sampling_rate
 
         task = ann.get("task", "asr")
