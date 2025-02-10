@@ -20,7 +20,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training, VBLoRAConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           StoppingCriteriaList, BitsAndBytesConfig)
 
@@ -181,13 +181,20 @@ class SALMONN(nn.Module):
                 else:
                     target_modules = None
 
-                self.peft_config = LoraConfig(
+                # self.peft_config = LoraConfig(
+                #     task_type=TaskType.CAUSAL_LM,
+                #     inference_mode=False,
+                #     r=lora_rank,
+                #     lora_alpha=lora_alpha,
+                #     lora_dropout=lora_dropout,
+                #     target_modules=target_modules
+                # )
+
+                self.peft_config = VBLoRAConfig(
                     task_type=TaskType.CAUSAL_LM,
                     inference_mode=False,
                     r=lora_rank,
-                    lora_alpha=lora_alpha,
-                    lora_dropout=lora_dropout,
-                    target_modules=target_modules
+                    vblora_dropout=lora_dropout,
                 )
 
                 self.llama_model = get_peft_model(self.llama_model, self.peft_config)
