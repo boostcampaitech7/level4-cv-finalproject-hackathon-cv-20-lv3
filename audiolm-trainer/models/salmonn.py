@@ -124,13 +124,24 @@ class SALMONN(nn.Module):
                     bnb_4bit_use_double_quant=True,
                     bnb_4bit_compute_dtype=torch.bfloat16,
                 )
-                self.llama_model = AutoModelForCausalLM.from_pretrained(
-                    llama_path,
-                    torch_dtype=torch.bfloat16,
-                    token=token,
-                    quantization_config = config,
-                    use_cache=False
-                )
+                try:
+                    self.llama_model = AutoModelForCausalLM.from_pretrained(
+                        llama_path,
+                        torch_dtype=torch.bfloat16,
+                        token=token,
+                        quantization_config = config,
+                        use_cache=False,
+                        attn_implementation = flash_attention_2
+                    )
+                except Exception e:
+                    
+                    self.llama_model = AutoModelForCausalLM.from_pretrained(
+                        llama_path,
+                        torch_dtype=torch.bfloat16,
+                        token=token,
+                        quantization_config = config,
+                        use_cache=False
+                    )
                 self.llama_model = prepare_model_for_kbit_training(self.llama_model)
             else:
                 self.llama_model = AutoModelForCausalLM.from_pretrained(
