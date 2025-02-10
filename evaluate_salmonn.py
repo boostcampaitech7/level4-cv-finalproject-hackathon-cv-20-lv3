@@ -129,7 +129,7 @@ def main(args):
     dataloader = get_dataset(cfg.config.datasets, cfg.config.run, args.mode)
     dataloader = get_sampled_dataloader(dataloader, 10)
 
-    with open("audiolm-trainer/prompts/test_prompt.json", "r") as f:
+    with open("prompts/evaluate_prompt.json", "r") as f:
         test_prompt = json.load(f)
 
     # Evaluation

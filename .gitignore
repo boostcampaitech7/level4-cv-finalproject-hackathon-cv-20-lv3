@@ -3,6 +3,7 @@ __pycache__
 .vscode
 *.json
 !english.json
+!evaluate_prompt.json
 *.csv
 *.pt
 *.pth

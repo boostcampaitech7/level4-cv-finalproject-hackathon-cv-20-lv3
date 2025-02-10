@@ -15,13 +15,13 @@
 model:
   # paths
   llama_path: "/data/ephemeral/home/.pretrained/llama-3.2-3b-instruct"
-  whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
+  whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v3"
   beats_path: "/data/ephemeral/home/.pretrained/beats-iter3-plus-AS2M-finetuned-on-AS2M-cpt2/BEATs_iter3_plus_AS2M_finetuned_on_AS2M_cpt2.pt"
 
   token: "" # Use hf token to access gated repositories
   only_preprocessor: False
 
-  ckpt: "/data/ephemeral/home/.pretrained/salmonn_3b_nota.pth" # model used for decoding
+  ckpt: "/data/ephemeral/home/.pretrained/nota-3b-q-vblora-stage2.pth" # model used for decoding
 
   freeze_whisper: True
   freeze_beats: True
@@ -49,6 +49,7 @@ model:
   test_prompt_path: "audiolm-trainer/prompts/test_prompt.json"
   max_txt_len: 300
   end_sym: "<|end_of_text|>"
+  low_resource: True
 
 generate:
   max_new_tokens: 200
@@ -64,11 +65,11 @@ generate:
 datasets:
   prefix: "/data/ephemeral/home/.dataset"
   # test_ann_path: "data/test_aac.json" # (deprecated next update)
-  test_ann_path_asr: "/data/ephemeral/home/.dataset/annotation_final/test/test_asr.json"
-  test_ann_path_aac: "/data/ephemeral/home/.dataset/annotation_final/test/test_audiocaption_v2.json"
-  whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v2"
+  test_ann_path_asr: "/data/ephemeral/home/.dataset/annotation_final/test_asr.json"
+  test_ann_path_aac: "/data/ephemeral/home/.dataset/annotation_final/test_aac.json"
+  whisper_path: "/data/ephemeral/home/.pretrained/whisper-large-v3"
 
 run:
-  batch_size_eval: 8
+  batch_size_eval: 32
   num_workers: 8
   device: "cuda"
