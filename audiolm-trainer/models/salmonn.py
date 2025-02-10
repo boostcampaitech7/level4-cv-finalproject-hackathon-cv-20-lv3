@@ -133,7 +133,7 @@ class SALMONN(nn.Module):
                         use_cache=False,
                         attn_implementation = flash_attention_2
                     )
-                except Exception e:
+                except Exception:
                     
                     self.llama_model = AutoModelForCausalLM.from_pretrained(
                         llama_path,
