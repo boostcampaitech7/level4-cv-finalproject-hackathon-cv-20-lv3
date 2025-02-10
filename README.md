@@ -4,10 +4,9 @@
 특히, VRAM이 제한된 환경에서도 원활하게 동작할 수 있도록 최적화하는 것이 핵심입니다. 이를 통해, Audio Understanding 벤치마크에서 기존 baseline 모델의 정확도를 유지하면서도, 더 작고 빠른 모델을 개발하는 것을 목표로 합니다.
 
 본 모델은 [SALMONN](https://github.com/bytedance/SALMONN)을 변형한 버전으로 사용하고 있습니다.
-
 ## 모델의 구조
 
-
+![](img/Q-Former.jpg)
 ## 실행 방법
 
 ### 초기 설정 방법
@@ -19,7 +18,7 @@ git clone https://github.com/boostcampaitech7/level4-cv-finalproject-hackathon-c
 Git이 설치되어 있지 않은 경우, 저장소 상단의 "Code" 버튼을 클릭한 뒤 "Download ZIP" 버튼을 눌러주세요.
 다운로드된 ZIP 파일을 원하는 폴더에 압축 해제하면 사용할 수 있습니다.
 
-![](image.png)
+![](img/image.png)
 
 **2. 올바른 python을 설치합니다.**
 
