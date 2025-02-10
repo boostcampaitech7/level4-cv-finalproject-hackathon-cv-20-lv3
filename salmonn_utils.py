@@ -4,6 +4,8 @@ import torch
 import librosa
 import numpy as np
 import soundfile as sf
+import noisereduce as nr
+import torchaudio.transforms as T
 
 from pathlib import Path
 from torch.utils.data import Dataset
@@ -77,7 +79,7 @@ class SALMONNTestDataset(Dataset):
 
     def __getitem__(self, index):
         ann = self.annotation[index]
-        audio_path = os.path.join(self.prefix, ann["path"])
+        audio_path = os.path.join(self.prefix, ann["path"].lstrip("/"))
         try:
             audio, sr = sf.read(audio_path)
         except:
@@ -92,14 +94,18 @@ class SALMONNTestDataset(Dataset):
             audio = np.concatenate((audio, sil), axis=0)
 
         if sr != self.wav_processor.sampling_rate: # TODO. use more efficient implementation            
-            audio = librosa.resample(audio, orig_sr=sr, target_sr=self.wav_processor.sampling_rate)
+            resampler = T.Resample(orig_freq=sr, new_freq=self.wav_processor.sampling_rate)
+            audio = resampler(torch.tensor(audio)).numpy()
             sr = self.wav_processor.sampling_rate
 
+        task = ann.get("task", "asr")
         audio = audio[: sr * 30] # truncate audio to at most 30s
-
+        if task == "asr":
+            audio = nr.reduce_noise(y=audio, sr=sr, prop_decrease=0.8) # 노이즈 제거 함수 추가
+            
         spectrogram = self.wav_processor(audio, sampling_rate=sr, return_tensors="pt")["input_features"].squeeze()
         testset_id = ann["testset_id"]
-        task = ann.get("task", "asr")
+        # task = ann.get("task", "asr")
         Q = ann.get("Q", "")
 
         entity = {
