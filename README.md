@@ -32,7 +32,6 @@ Git이 설치되어 있지 않은 경우, 저장소 상단의 "Code" 버튼을 �
 이 과정은 프로젝트 실행에 필요한 환경을 설정하는 단계입니다.
 
 ```bash
-pip install -r audiolm-trainer/requirements.txt
 pip install -r requirements.txt
 aac-metrics-download
 ```
@@ -103,16 +102,11 @@ python evaluate_salmonn.py --mode [submission_asr, submission_aac, valid_asr, va
 - submission과 valid는 서로 다른 디렉토리에 csv 파일이 저장됩니다.
 - `--cfg-path`를 생략할 경우 salmonn_eval_config.yaml이 기본값으로 실행됩니다.
 
-**Latency/Time 평가하기**
+**Latency/Time 평가하기**\
+Latency와 Time은 따로 submission 파일을 생성하지 않습니다.\
+Time은 TTFT(이미지 프로세싱 및 prefill에 소요되는 시간)와 TPOT(decode에 소요되는 시간)으로 산출됩니다.\
+각 GPU 환경에 따라 Time 결과값이 달라질 수 있습니다. 
 
 ```bash
 python evaluate_efficiency_salmonn.py --cfg-path [config 파일 위치]
 ```
-
-
-## Validate submission file
-```python
-python submission_validator.py /path/to/submission.csv
-```
-
-위 스크립트는 파일의 형식만 확인하며, 샘플의 개수는 validation하지 않습니다.
