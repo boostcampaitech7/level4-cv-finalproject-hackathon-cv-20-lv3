@@ -91,12 +91,6 @@ class Runner:
         # scaler
         self.use_amp = self.config.config.run.get("amp", False)
 
-        # torch.float16일 때 amp가 제대로 수행되지 않는 문제 해결
-        # if self.get_model_dtype(self.model) == torch.float16:
-        #     self.use_amp = False
-
-        # print(self.get_model_dtype(self.model), self.use_amp)
-
         if self.use_amp:
             self.scaler = torch.GradScaler("cuda")
         else:
@@ -120,14 +114,6 @@ class Runner:
         )
 
         self.log_config()
-
-    def get_model_dtype(self, model):
-        for name, param in  model.named_parameters():
-            print(name,param.dtype)
-        return
-        for buffer in model.buffers():
-            return buffer.dtype
-        assert False, "모델에 parameters()와 buffers()가 없습니다. dtype을 확인할 수 없습니다."
 
     def unwrap_dist_model(self, model):
         if self.use_distributed:
@@ -178,7 +164,8 @@ class Runner:
                 break
 
             samples = next(self.train_loader)
-            samples = prepare_sample(samples, cuda_enabled=self.cuda_enabled)
+
+            samples = prepare_sample(samples, cuda_enabled=self.cuda_enabled,fp16_enabled=self.config.config.run.amp)
 
             if not self.dryrun:
                 self.scheduler.step(cur_epoch=epoch, cur_step=i)
@@ -193,7 +180,6 @@ class Runner:
                     self.scaler.scale(loss).backward()
                 else:
                     loss.backward()
-
 
                 # Gradient Clipping 적용 (max_norm = 1.0)
                 if self.config.config.model.lora_16bit:
@@ -250,7 +236,7 @@ class Runner:
         for samples in metric_logger.log_every(
             dataloader, self.config.config.run.log_freq, header=header
         ):
-            samples = prepare_sample(samples, cuda_enabled=self.cuda_enabled)
+            samples = prepare_sample(samples, cuda_enabled=self.cuda_enabled, fp16_enabled=self.config.config.run.amp)
 
             if not self.dryrun:
                 with torch.autocast("cuda", enabled=self.use_amp):

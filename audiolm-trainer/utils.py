@@ -86,11 +86,15 @@ def move_to_cuda(sample):
     return apply_to_sample(_move_to_cuda, sample)
 
 
-def prepare_sample(samples, cuda_enabled=True):
+def prepare_sample(samples, cuda_enabled=True, fp16_enabled=True):
     if cuda_enabled:
         samples = move_to_cuda(samples)
 
-    # TODO fp16 support
+    # fp16 support
+    if fp16_enabled:
+        for key in samples:
+            if isinstance(samples[key], torch.Tensor):  # Only convert tensor fields to fp16
+                samples[key] = samples[key].to(torch.bfloat16)
 
     return samples
 
